@@ -1,5 +1,5 @@
 #!/bin/sh
-# Force120Hz 1.0.6 postinst
+# Force120Hz 1.0.7 postinst
 #
 # 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
 #   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
@@ -7,7 +7,7 @@
 #   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
 #   探测失败不影响安装结果。
 #
-# 1.0.6 改动：每一步都追加记录到 .install.log。
+# 1.0.7 改动：每一步都追加记录到 .install.log。
 #   用户设备上出现过「postinst 跑了、log 文件建了、但 plist 和 marker 都没有」的情况，
 #   当时无法判断 postinst 死在哪一步。现在每一步都有痕迹，可直接定位。
 
@@ -24,7 +24,7 @@ note() {
     echo "  $1"
 }
 
-note "===== postinst 1.0.6 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
+note "===== postinst 1.0.7 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
 
 JB=/var/jb
 [ -d "$JB" ] || JB=""
@@ -80,7 +80,7 @@ if [ ! -f "$PREFS" ]; then
 <plist version="1.0">
 <dict>
 	<key>Force120</key>       <true/>
-	<key>LaunchSpeedup</key>  <false/>
+	<key>LaunchSpeedup</key>  <true/>
 	<key>LaunchDivisor</key>  <real>3.0</real>
 	<key>DebugLog</key>       <true/>
 </dict>
@@ -101,7 +101,7 @@ else
             /usr/bin/plutil -insert "$1" -"$2" "$3" "$PREFS" 2>/dev/null || return 0
         }
         add_key Force120      bool true
-        add_key LaunchSpeedup bool false
+        add_key LaunchSpeedup bool true
         add_key LaunchDivisor real 3.0
         add_key DebugLog      bool true
         chown mobile:mobile "$PREFS" 2>/dev/null || true
@@ -135,7 +135,7 @@ note "重启 SpringBoard..."
 killall -9 SpringBoard 2>/dev/null || note "WARN killall SpringBoard 失败"
 
 echo ""
-echo "Force120Hz 1.0.6 installed (global 120Hz; launch speedup OFF by default)"
+echo "Force120Hz 1.0.7 installed (global 120Hz; launch speedup OFF by default)"
 echo ""
 echo "  dylib: $DL/Force120Hz.dylib"
 if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
@@ -156,5 +156,5 @@ echo ""
 echo "* EMERGENCY (black screen loop): f120 panic"
 echo "  safemode only writes marker, installs no hooks."
 echo ""
-note "===== postinst 1.0.6 end ====="
+note "===== postinst 1.0.7 end ====="
 exit 0

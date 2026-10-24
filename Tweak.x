@@ -44,7 +44,7 @@
 #import <time.h>
 #import <sys/stat.h>
 
-#define kVersion "1.0.6"
+#define kVersion "1.0.7"
 
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
 static const char *kMarkerPath = "/var/mobile/Library/Preferences/com.minis.force120hz.loaded";
@@ -192,6 +192,7 @@ static void refreshConfig(void) {
 // 候选表命中不了时，用这个直接问运行时「到底有哪些类」。
 // objc_getClassList 能拿到全部已注册类，按前缀过滤即可。
 // 结果同时写进日志和 sbstatus，不用再猜。
+
 static void probeClasses(const char *prefix, const char *label) {
     @try {
         int total = objc_getClassList(NULL, 0);
@@ -228,6 +229,9 @@ static void runProbes(void) {
     probeClasses("SBApp", "SBApp*");
     probeClasses("SBApplication", "SBApplication*");
 }
+
+
+
 
 #pragma mark - status
 
@@ -297,17 +301,16 @@ static void f120_early(void) {
         }
 
         // 启动加速：只在 SpringBoard，延迟 3 秒让运行时类表定稿。
-        // 默认 gLaunchSpeedup=NO，此时 installLaunchSpeedupHooks() 直接返回 0。
+        // 默认 gLaunchSpeedup=NO，此时 installLaunchSpeedupHooksImpl() 直接返回 0。
         if (isSB()) {
             if (gLaunchSpeedup) {
                 dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3.0 * NSEC_PER_SEC)),
                                dispatch_get_main_queue(), ^{
                     @try {
-                        gLaunchHooks = installLaunchSpeedupHooks();
+                        gLaunchHooks = installLaunchSpeedupHooksImpl();
                         rawLog("launch-speedup: %d hook(s), divisor=%.1f", gLaunchHooks, gLaunchDivisor);
-                        if (gLaunchHooks == 0) runProbes();   // 没命中就列出真实类名
                         postStatus();
-                    } @catch (id e) { rawLog("installLaunchSpeedupHooks threw"); }
+                    } @catch (id e) { rawLog("installLaunchSpeedupHooksImpl threw"); }
                 });
             } else {
                 gLaunchHooks = 0;
