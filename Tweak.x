@@ -44,12 +44,15 @@
 #import <time.h>
 #import <sys/stat.h>
 
-#define kVersion "1.0.5"
+#define kVersion "1.0.6"
 
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
 static const char *kMarkerPath = "/var/mobile/Library/Preferences/com.minis.force120hz.loaded";
 static const char *kLogPath    = "/var/mobile/Library/Preferences/com.minis.force120hz.log";
 static const char *kStatusPath = "/var/mobile/Library/Preferences/com.minis.force120hz.status";
+// SpringBoard 单独一份：启动加速只在 SB 里生效，混写同一个文件会被
+// 后启动的 App 进程覆盖，导致永远看不到真实的 launch-hooks 数。
+static const char *kSBStatusPath = "/var/mobile/Library/Preferences/com.minis.force120hz.sbstatus";
 static const char *kSafePath   = "/var/mobile/Library/Preferences/com.minis.force120hz.safemode";
 
 #define kNfStatus    "com.minis.force120hz.status"
@@ -183,6 +186,49 @@ static void refreshConfig(void) {
 // 启动动画加速（默认关闭，见文件头说明；只含无参、返回 double 的候选）
 #include "LaunchSpeedup.inc"
 
+
+#pragma mark - 类名探测（只在 SpringBoard 里跑，结果写进日志）
+
+// 候选表命中不了时，用这个直接问运行时「到底有哪些类」。
+// objc_getClassList 能拿到全部已注册类，按前缀过滤即可。
+// 结果同时写进日志和 sbstatus，不用再猜。
+static void probeClasses(const char *prefix, const char *label) {
+    @try {
+        int total = objc_getClassList(NULL, 0);
+        if (total <= 0) { rawLog("probe %s: class list empty", label); return; }
+
+        Class *list = (Class *)malloc(sizeof(Class) * (size_t)total);
+        if (!list) return;
+        total = objc_getClassList(list, total);
+
+        size_t plen = strlen(prefix);
+        int hits = 0;
+        rawLog("probe %s: scanning %d classes for prefix '%s'", label, total, prefix);
+        for (int i = 0; i < total; i++) {
+            const char *cn = class_getName(list[i]);
+            if (!cn || strncmp(cn, prefix, plen) != 0) continue;
+            // 只要我们自己关心的那几个方法，别把整个类表刷进日志
+            BOOL hasDur = class_getInstanceMethod(list[i], sel_registerName("duration")) != NULL;
+            BOOL hasComp = class_getInstanceMethod(list[i], sel_registerName("completionDuration")) != NULL;
+            BOOL hasAnim = class_getInstanceMethod(list[i], sel_registerName("animationDuration")) != NULL;
+            if (hasDur || hasComp || hasAnim) {
+                rawLog("  HIT %s  duration=%d completionDuration=%d animationDuration=%d",
+                       cn, hasDur, hasComp, hasAnim);
+                hits++;
+            }
+        }
+        free(list);
+        rawLog("probe %s: %d candidate class(es) with duration-ish selectors", label, hits);
+    } @catch (id e) {
+        rawLog("probe %s threw", label);
+    }
+}
+
+static void runProbes(void) {
+    probeClasses("SBApp", "SBApp*");
+    probeClasses("SBApplication", "SBApplication*");
+}
+
 #pragma mark - status
 
 static NSString *statusString(void) {
@@ -207,7 +253,11 @@ static void postStatus(void) {
         NSString *s = statusString();
         rawLog("status: %s", [s UTF8String]);
         NSData *d = [s dataUsingEncoding:NSUTF8StringEncoding];
-        if (d) [d writeToFile:[NSString stringWithUTF8String:kStatusPath] atomically:YES];
+        if (!d) return;
+        [d writeToFile:[NSString stringWithUTF8String:kStatusPath] atomically:YES];
+        // SpringBoard 额外写一份专属文件。App 进程只写上面那份，
+        // 不会覆盖这里 —— 否则 f120 status 看到的永远是终端/最后一个 App 的数字。
+        if (isSB()) [d writeToFile:[NSString stringWithUTF8String:kSBStatusPath] atomically:YES];
         notify_post(kNfStatus);
     } @catch (id e) {}
 }
@@ -255,6 +305,7 @@ static void f120_early(void) {
                     @try {
                         gLaunchHooks = installLaunchSpeedupHooks();
                         rawLog("launch-speedup: %d hook(s), divisor=%.1f", gLaunchHooks, gLaunchDivisor);
+                        if (gLaunchHooks == 0) runProbes();   // 没命中就列出真实类名
                         postStatus();
                     } @catch (id e) { rawLog("installLaunchSpeedupHooks threw"); }
                 });

@@ -7,6 +7,7 @@
 #   f120 set <key> <value>   设置任意键（true/false 写成布尔）
 #   f120 log [n]             看运行日志
 #   f120 crash               看崩溃诊断（dylib 被注入后崩了才会写）
+#   f120 probe               列出 SpringBoard 里真实的 SBApp* 类名（诊断用）
 #   f120 install             看 postinst 每一步的安装轨迹
 #   f120 clear               清空 日志+崩溃
 #   f120 safemode [on|off]   安全模式（只写 marker，不装 hook）★ 卡死时用
@@ -30,8 +31,9 @@ CRASH="$P/com.minis.force120hz.crash"
 INST="$P/com.minis.force120hz.install.log"
 MARKER="$P/com.minis.force120hz.loaded"
 STATUS="$P/com.minis.force120hz.status"
+SBSTATUS="$P/com.minis.force120hz.sbstatus"
 DL=/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib
-VER=1.0.5
+VER=1.0.6
 
 # ---- 纯 POSIX 的 plist 读取（不依赖 plutil / awk，只用 grep+sed）----
 # 设备上没装 awk！所以这里全程 grep+sed。postinst 把 key 和值写在同一行，
@@ -164,11 +166,18 @@ case "$1" in
       echo "   none (no crash)"
     fi
 
-    echo "-- plugin status --"
-    if [ -s "$STATUS" ]; then
-      cat "$STATUS" | sed 's/^/   /'
+    echo "-- SpringBoard status (authoritative for launch speedup) --"
+    if [ -s "$SBSTATUS" ]; then
+      cat "$SBSTATUS" | sed 's/^/   /'
     else
-      echo "   !! none = plugin not initialised"
+      echo "   !! no SpringBoard status (SB not injected, or never initialised)"
+    fi
+
+    echo "-- last process status (informational only) --"
+    if [ -s "$STATUS" ]; then
+      head -n 2 "$STATUS" | sed 's/^/   /'
+    else
+      echo "   (none)"
     fi
 
     echo "-- package version --"
@@ -199,6 +208,16 @@ case "$1" in
   set)    [ -z "$3" ] && { echo "usage: f120 set <key> <value>"; exit 1; }; setv "$2" "$3" ;;
   log)    tail -n "${2:-80}" "$LOG" 2>/dev/null || echo "(no log)" ;;
   crash)  cat "$CRASH" 2>/dev/null || echo "(no crash record)" ;;
+  probe)
+    echo "== SBApp* classes with duration-ish selectors =="
+    if [ -s "$LOG" ]; then
+      grep -A400 "probe SBApp" "$LOG" | grep -E "probe |HIT " | sed "s/^/   /"
+      echo ""
+      echo "  (empty = plugin has not run probe yet; run: f120 launch on && f120 sb)"
+    else
+      echo "   (no log)"
+    fi
+    ;;
   install) tail -n "${2:-60}" "$INST" 2>/dev/null || echo "(no install log)" ;;
   clear)  : > "$LOG"; : > "$CRASH"; echo "log and crash cleared" ;;
   safemode)
