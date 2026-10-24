@@ -1,14 +1,30 @@
 #!/bin/sh
-# Force120Hz 1.0.0 postinst
+# Force120Hz 1.0.1 postinst
 #
 # 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
 #   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
 #   dpkg 在 unpack 阶段会整体失败（不是该文件失败，是整个包失败）。
 #   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
 #   探测失败不影响安装结果。
+#
+# 1.0.1 改动：每一步都追加记录到 .install.log。
+#   用户设备上出现过「postinst 跑了、log 文件建了、但 plist 和 marker 都没有」的情况，
+#   当时无法判断 postinst 死在哪一步。现在每一步都有痕迹，可直接定位。
 
 PREF_DIR="/var/mobile/Library/Preferences"
-mkdir -p "$PREF_DIR"
+INST_LOG="$PREF_DIR/com.minis.force120hz.install.log"
+
+mkdir -p "$PREF_DIR" 2>/dev/null
+# 安装日志：追加以供事后排查；权限先给足避免 chown 失败
+[ -f "$INST_LOG" ] || : > "$INST_LOG"
+chmod 666 "$INST_LOG" 2>/dev/null
+
+note() {
+    printf '%s  %s\n' "$(date '+%m-%d %H:%M:%S')" "$1" >> "$INST_LOG" 2>/dev/null
+    echo "  $1"
+}
+
+note "===== postinst 1.0.1 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
 
 JB=/var/jb
 [ -d "$JB" ] || JB=""
@@ -19,8 +35,18 @@ TI="$JB/usr/lib/TweakInject"
 DYLIB="$DL/Force120Hz.dylib"
 PLIST="$DL/Force120Hz.plist"
 
-chmod 755 "$DYLIB" 2>/dev/null || true
-chmod 644 "$PLIST" 2>/dev/null || true
+if [ -f "$DYLIB" ]; then
+    note "dylib 存在: $DYLIB  ($(wc -c < "$DYLIB") bytes)"
+    chmod 755 "$DYLIB" 2>/dev/null || note "WARN chmod dylib 失败"
+else
+    note "ERROR dylib 不存在: $DYLIB"
+fi
+if [ -f "$PLIST" ]; then
+    note "plist 存在: $PLIST  ($(wc -c < "$PLIST") bytes)"
+    chmod 644 "$PLIST" 2>/dev/null || true
+else
+    note "ERROR plist 不存在: $PLIST"
+fi
 
 # ---- 镜像到 TweakInject（仅当该目录真实可用且与 DL 不是同一目录）----
 if [ -d "$TI" ] && [ -w "$TI" ] && [ -f "$DYLIB" ]; then
@@ -30,22 +56,25 @@ if [ -d "$TI" ] && [ -w "$TI" ] && [ -f "$DYLIB" ]; then
     if [ -n "$TI_REAL" ] && [ "$TI_REAL" != "$DL_REAL" ]; then
         # 真实副本，不用符号链接（ln -sf X X 曾把 dylib 毁成 67 字节自指链接）
         rm -f "$TI/Force120Hz.dylib" "$TI/Force120Hz.plist" 2>/dev/null || true
-        cp -f "$DYLIB" "$TI/Force120Hz.dylib" 2>/dev/null && \
+        if cp -f "$DYLIB" "$TI/Force120Hz.dylib" 2>/dev/null; then
             chmod 755 "$TI/Force120Hz.dylib" 2>/dev/null || true
+            note "已镜像到 TweakInject: $TI"
+        else
+            note "WARN TweakInject 镜像失败: $TI"
+        fi
         cp -f "$PLIST" "$TI/Force120Hz.plist" 2>/dev/null && \
             chmod 644 "$TI/Force120Hz.plist" 2>/dev/null || true
-        echo "  mirrored to TweakInject: $TI"
     else
-        echo "  TweakInject 与 DynamicLibraries 同一目录，无需镜像"
+        note "TweakInject 与 DynamicLibraries 同一目录($DL_REAL)，无需镜像"
     fi
 else
-    echo "  TweakInject 不可用/不存在，跳过（DynamicLibraries 已装好）"
+    note "TweakInject 不可用/不存在，跳过（DynamicLibraries 已装好）"
 fi
 
 # ---- 配置：只补缺失键，不覆盖用户已有设置 ----
 PREFS="$PREF_DIR/com.minis.force120hz.plist"
 if [ ! -f "$PREFS" ]; then
-    cat > "$PREFS" <<'PLIST'
+    if cat > "$PREFS" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -57,52 +86,69 @@ if [ ! -f "$PREFS" ]; then
 </dict>
 </plist>
 PLIST
-    chown mobile:mobile "$PREFS" 2>/dev/null || true
-    chmod 644 "$PREFS"
+    then
+        chown mobile:mobile "$PREFS" 2>/dev/null || true
+        chmod 644 "$PREFS" 2>/dev/null || true
+        note "已创建配置: $PREFS  ($(wc -c < "$PREFS") bytes)"
+    else
+        note "ERROR 配置写入失败: $PREFS"
+    fi
 else
+    note "配置已存在，仅补缺失键: $PREFS"
     if command -v /usr/bin/plutil >/dev/null 2>&1; then
         add_key() {
             /usr/bin/plutil -extract "$1" raw "$PREFS" >/dev/null 2>&1 && return 0
-            /usr/bin/plutil -insert "$1" -"$2" "$3" "$PREFS" 2>/dev/null || true
+            /usr/bin/plutil -insert "$1" -"$2" "$3" "$PREFS" 2>/dev/null || return 0
         }
         add_key Force120      bool true
         add_key LaunchSpeedup bool true
         add_key LaunchDivisor real 3.0
         add_key DebugLog      bool true
         chown mobile:mobile "$PREFS" 2>/dev/null || true
+    else
+        note "WARN plutil 不可用，跳过补键"
     fi
 fi
 
-# ---- 日志与状态文件，权限给足 ----
-LOG="$PREF_DIR/com.minis.force120hz.log"
-[ -f "$LOG" ] || : > "$LOG"
-chown mobile:mobile "$LOG" 2>/dev/null || true
-chmod 666 "$LOG"
-
-for f in com.minis.force120hz.marker com.minis.force120hz.status; do
-    [ -f "$PREF_DIR/$f" ] && { chown mobile:mobile "$PREF_DIR/$f" 2>/dev/null || true; chmod 666 "$PREF_DIR/$f"; }
+# ---- 日志 / 崩溃 / 状态 / 安装日志：权限给足 ----
+for f in com.minis.force120hz.log \
+         com.minis.force120hz.crash \
+         com.minis.force120hz.marker \
+         com.minis.force120hz.status; do
+    p="$PREF_DIR/$f"
+    [ -f "$p" ] || : > "$p"
+    chown mobile:mobile "$p" 2>/dev/null || true
+    chmod 666 "$p" 2>/dev/null || true
 done
+note "日志/崩溃/marker/status 文件已就位并 chmod 666"
 
 # ---- CLI ----
 for p in /var/jb/usr/bin/f120 /usr/bin/f120; do
-    [ -f "$p" ] && chmod 755 "$p"
+    [ -f "$p" ] && { chmod 755 "$p"; note "CLI 就位: $p"; }
 done
 
-killall -9 SpringBoard 2>/dev/null || true
+# ---- 重启 SpringBoard，让注入生效 ----
+note "重启 SpringBoard..."
+killall -9 SpringBoard 2>/dev/null || note "WARN killall SpringBoard 失败"
 
 echo ""
-echo "Force120Hz 1.0.0 已安装（全局 120Hz + 启动动画 x3）"
+echo "Force120Hz 1.0.1 已安装（全局 120Hz + 启动动画 x3）"
 echo ""
-echo "  dylib: $DL/Force120Hz.dylib  ($(wc -c < "$DYLIB" 2>/dev/null) bytes)"
+echo "  dylib: $DL/Force120Hz.dylib"
 if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
-    echo "  ellekit: $TI/Force120Hz.dylib  ($(wc -c < "$TI/Force120Hz.dylib" 2>/dev/null) bytes)"
+    echo "  ellekit: $TI/Force120Hz.dylib"
 fi
 echo ""
-echo "下一步："
-echo "  f120 status    一条命令看全部状态（含 SpringBoard 内装了几个 duration hook）"
-echo "  f120 sb        需要重启 SpringBoard 时"
+echo "★ 等 15-20 秒后跑：f120 status"
 echo ""
-echo "若 launch-hooks = 0：说明这个 iOS 版本上候选的 SBApp* 类/方法都不存在，"
-echo "                     把 f120 log 贴回来即可定位真实类名。"
+echo "  marker 存在        → dylib 被注入了，一切正常"
+echo "  launch-hooks > 0   → 启动动画加速真的挂上了"
 echo ""
+echo "★ 若 marker 仍不存在（dylib 没被注入）："
+echo "  f120 install       → 打印完整的安装轨迹（含 postinst 每一步）"
+echo "  f120 crash         → 打印崩溃诊断（信号号 + 进程 + 所处阶段）"
+echo ""
+echo "★ 若 .crash 有内容：dylib 加载后崩溃了，把那几行贴回来即可定位。"
+echo ""
+note "===== postinst 1.0.1 end ====="
 exit 0
