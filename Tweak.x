@@ -1,6 +1,8 @@
-// Force120Hz 1.0.1 — global ProMotion 120Hz + app-launch animation speedup
+// Force120Hz 1.0.3 — global ProMotion 120Hz + app-launch animation speedup
 //
-// Filter.Mode = Any  → dylib 注入每个进程，%ctor 用 hasUIKit() 挡住非 UI 进程。
+// plist Filter = { Bundles = [com.apple.UIKit, com.apple.springboard] }
+// 注意：1.0.0~1.0.2 用的是 Filter.Mode=Any，在本设备的 ellekit 上完全不被扫描
+// （同设备上能正常工作的 SquidGesture 3.5.0 用的是 Bundles 白名单）。
 //
 // 1.0.1 相对 1.0.0 的改动（针对 iOS 16.5 / Dopamine rootless 上 marker 始终缺失）
 //   1. 新增 __attribute__((constructor(100))) 的 f120_ctor_early：
@@ -50,7 +52,7 @@
 #import <sys/types.h>
 #import <dispatch/dispatch.h>
 
-#define kVersion "1.0.1"
+#define kVersion "1.0.3"
 
 // ---- C 层路径常量（marker/日志写入不依赖 ObjC，任何时刻可安全调用）----
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
@@ -397,13 +399,18 @@ static void onToggleLaunch(int token) {
 // 「dylib 被注入了」和「hook 装坏了」这两种完全不同的故障。
 __attribute__((constructor(100)))
 static void f120_ctor_early(void) {
-    installDiagHandlers();
-    gStage = 1;
-    if (!hasUIKit()) return;          // 非 UI 进程（守护进程等）到此为止，零开销
+    // ★ 第一件事就是写 marker，任何检查都不能排在它前面。
+    //   1.0.1 把 hasUIKit() 检查放在了 writeMarker() 之前，而 SpringBoard 里
+    //   NSClassFromString(@"UIApplication") 可能返回 nil → 直接 return → marker 永远不写。
+    //   那是诊断代码自己的 bug，把「dylib 有没有被注入」这个唯一判据给废掉了。
     writeMarker();
+    gStage = 1;
+    installDiagHandlers();
     gStage = 2;
+    if (!hasUIKit()) return;          // 非 UI 进程（守护进程等）到此为止
     rawLog("=== Force120Hz %s ctor-early proc=%s sb=%d pid=%d ===",
            kVersion, pn(), isSB() ? 1 : 0, getpid());
+    gStage = 3;
 }
 
 #pragma mark - %ctor（主体）

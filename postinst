@@ -1,5 +1,5 @@
 #!/bin/sh
-# Force120Hz 1.0.1 postinst
+# Force120Hz 1.0.3 postinst
 #
 # 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
 #   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
@@ -7,7 +7,7 @@
 #   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
 #   探测失败不影响安装结果。
 #
-# 1.0.1 改动：每一步都追加记录到 .install.log。
+# 1.0.3 改动：每一步都追加记录到 .install.log。
 #   用户设备上出现过「postinst 跑了、log 文件建了、但 plist 和 marker 都没有」的情况，
 #   当时无法判断 postinst 死在哪一步。现在每一步都有痕迹，可直接定位。
 
@@ -24,7 +24,7 @@ note() {
     echo "  $1"
 }
 
-note "===== postinst 1.0.1 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
+note "===== postinst 1.0.3 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
 
 JB=/var/jb
 [ -d "$JB" ] || JB=""
@@ -132,7 +132,7 @@ note "重启 SpringBoard..."
 killall -9 SpringBoard 2>/dev/null || note "WARN killall SpringBoard 失败"
 
 echo ""
-echo "Force120Hz 1.0.1 已安装（全局 120Hz + 启动动画 x3）"
+echo "Force120Hz 1.0.3 已安装（全局 120Hz + 启动动画 x3）"
 echo ""
 echo "  dylib: $DL/Force120Hz.dylib"
 if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
@@ -150,5 +150,5 @@ echo "  f120 crash         → 打印崩溃诊断（信号号 + 进程 + 所处�
 echo ""
 echo "★ 若 .crash 有内容：dylib 加载后崩溃了，把那几行贴回来即可定位。"
 echo ""
-note "===== postinst 1.0.1 end ====="
+note "===== postinst 1.0.3 end ====="
 exit 0

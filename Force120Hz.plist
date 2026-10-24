@@ -4,8 +4,11 @@
 <dict>
 	<key>Filter</key>
 	<dict>
-		<key>Mode</key>
-		<string>Any</string>
+		<key>Bundles</key>
+		<array>
+			<string>com.apple.UIKit</string>
+			<string>com.apple.springboard</string>
+		</array>
 	</dict>
 </dict>
 </plist>

@@ -29,7 +29,7 @@ INST="$P/com.minis.force120hz.install.log"
 MARKER="$P/com.minis.force120hz.loaded"
 STATUS="$P/com.minis.force120hz.status"
 DL=/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib
-VER=1.0.2
+VER=1.0.3
 
 # ---- 纯 POSIX 的 plist 读取（不依赖 plutil / awk，只用 grep+sed）----
 # 设备上没装 awk！所以这里全程 grep+sed。postinst 把 key 和值写在同一行，
