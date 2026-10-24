@@ -1,5 +1,5 @@
 #!/bin/sh
-# Force120Hz 1.0.4 postinst
+# Force120Hz 1.0.5 postinst
 #
 # 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
 #   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
@@ -7,7 +7,7 @@
 #   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
 #   探测失败不影响安装结果。
 #
-# 1.0.4 改动：每一步都追加记录到 .install.log。
+# 1.0.5 改动：每一步都追加记录到 .install.log。
 #   用户设备上出现过「postinst 跑了、log 文件建了、但 plist 和 marker 都没有」的情况，
 #   当时无法判断 postinst 死在哪一步。现在每一步都有痕迹，可直接定位。
 
@@ -24,7 +24,7 @@ note() {
     echo "  $1"
 }
 
-note "===== postinst 1.0.4 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
+note "===== postinst 1.0.5 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
 
 JB=/var/jb
 [ -d "$JB" ] || JB=""
@@ -135,23 +135,26 @@ note "重启 SpringBoard..."
 killall -9 SpringBoard 2>/dev/null || note "WARN killall SpringBoard 失败"
 
 echo ""
-echo "Force120Hz 1.0.4 已安装（全局 120Hz + 启动动画 x3）"
+echo "Force120Hz 1.0.5 installed (global 120Hz; launch speedup OFF by default)"
 echo ""
 echo "  dylib: $DL/Force120Hz.dylib"
 if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
     echo "  ellekit: $TI/Force120Hz.dylib"
 fi
 echo ""
-echo "★ 等 15-20 秒后跑：f120 status"
+echo "* wait 15-20s, then run: f120 status"
 echo ""
-echo "  marker 存在        → dylib 被注入了，一切正常"
-echo "  launch-hooks > 0   → 启动动画加速真的挂上了"
+echo "  marker present  -> dylib injected, OK"
+echo "  launch-hooks > 0 -> launch speedup active"
 echo ""
-echo "★ 若 marker 仍不存在（dylib 没被注入）："
-echo "  f120 install       → 打印完整的安装轨迹（含 postinst 每一步）"
-echo "  f120 crash         → 打印崩溃诊断（信号号 + 进程 + 所处阶段）"
+echo "* if marker still absent (not injected):"
+echo "  f120 install    -> full install trace"
+echo "  f120 crash      -> crash diagnostics"
 echo ""
-echo "★ 若 .crash 有内容：dylib 加载后崩溃了，把那几行贴回来即可定位。"
+echo "* if .crash has content: dylib crashed after load"
 echo ""
-note "===== postinst 1.0.4 end ====="
+echo "* EMERGENCY (black screen loop): f120 panic"
+echo "  safemode only writes marker, installs no hooks."
+echo ""
+note "===== postinst 1.0.5 end ====="
 exit 0

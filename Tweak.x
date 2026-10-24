@@ -44,7 +44,7 @@
 #import <time.h>
 #import <sys/stat.h>
 
-#define kVersion "1.0.4"
+#define kVersion "1.0.5"
 
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
 static const char *kMarkerPath = "/var/mobile/Library/Preferences/com.minis.force120hz.loaded";
@@ -94,16 +94,24 @@ static void rawLog(const char *fmt, ...) {
 
 // marker：constructor 里的第一个动作，无条件、纯 POSIX。
 // 只要 dylib 被注入成功就一定落盘 —— 这是「注入是否发生」的唯一权威判据。
+// marker 用【追加】写，不是覆盖。每个被注入的进程都留一行，
+// 这样才能看出「哪些进程真的被注入了」——覆盖写会让最后一个进程
+// 把前面全部冲掉，误判为"只有终端被注入"。
+// 文件超过 32KB 时清空重来，避免无限增长（每个 App 打开都追加一次）。
 static void writeMarker(const char *tag) {
-    char buf[256];
+    char buf[224];
     int n = snprintf(buf, sizeof(buf),
-        "loaded %s proc=%s sb=%d pid=%d safemode=%d note=%s\n",
-        kVersion, pn(), isSB() ? 1 : 0, getpid(), gSafeMode ? 1 : 0, tag ? tag : "-");
+        "%ld %s proc=%s sb=%d pid=%d safe=%d note=%s\n",
+        (long)time(NULL), kVersion, pn(), isSB() ? 1 : 0, getpid(),
+        gSafeMode ? 1 : 0, tag ? tag : "-");
     if (n <= 0) return;
-    int fd = open(kMarkerPath, O_WRONLY | O_CREAT | O_TRUNC, 0664);
+
+    struct stat st;
+    if (stat(kMarkerPath, &st) == 0 && st.st_size > 32 * 1024) unlink(kMarkerPath);
+
+    int fd = open(kMarkerPath, O_WRONLY | O_CREAT | O_APPEND, 0664);
     if (fd < 0) return;
     write(fd, buf, (size_t)n);
-    fsync(fd);
     close(fd);
 }
 
@@ -189,7 +197,7 @@ static NSString *statusString(void) {
             gForce120 ? "YES" : "NO",
             gLaunchSpeedup ? "YES" : "NO", gLaunchDivisor,
             gSafeMode ? "YES" : "NO",
-            gSafeMode ? "  (只写 marker，不装 hook)" : "",
+            gSafeMode ? "  (marker-only, no hooks)" : "",
             gLaunchHooks];
     } @catch (id e) { return @"status threw"; }
 }
@@ -233,7 +241,7 @@ static void f120_early(void) {
 %ctor {
     @try {
         if (gSafeMode) {
-            rawLog("SAFEMODE: 只写 marker，不装任何 hook");
+            rawLog("SAFEMODE: marker only, no hooks installed");
             postStatus();
             return;
         }

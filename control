@@ -1,8 +1,8 @@
 Package: com.minis.force120hz
 Name: Force120Hz + Quick Launch
-Version: 1.0.4
+Version: 1.0.5
 Architecture: iphoneos-arm64
-Description: Force ProMotion 120Hz on every app (UIScreen + CADisplayLink + CAAnimation) and play the SpringBoard app-launch animation 3x faster.
+Description: Force ProMotion 120Hz in every app via UIScreen + CADisplayLink public APIs. Optional SpringBoard launch-animation speedup (OFF by default).
 Maintainer: minis
 Author: minis
 Section: Tweaks

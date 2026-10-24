@@ -31,7 +31,7 @@ INST="$P/com.minis.force120hz.install.log"
 MARKER="$P/com.minis.force120hz.loaded"
 STATUS="$P/com.minis.force120hz.status"
 DL=/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib
-VER=1.0.4
+VER=1.0.5
 
 # ---- 纯 POSIX 的 plist 读取（不依赖 plutil / awk，只用 grep+sed）----
 # 设备上没装 awk！所以这里全程 grep+sed。postinst 把 key 和值写在同一行，
@@ -66,18 +66,18 @@ getv() {
 # ---- 纯 POSIX 的 plist 写入：四个键固定，整文件重写（不可能写坏）----
 setv() {
   key="$1"; val="$2"
-  [ -f "$PREFS" ] || { echo "!! 无配置文件 $PREFS"; return 1; }
+  [ -f "$PREFS" ] || { echo "!! no config $PREFS"; return 1; }
   case "$key" in
     Force120|LaunchSpeedup|DebugLog)
       case "$val" in
         true|false) ;;
-        *) echo "!! $key 只能是 true 或 false"; return 1 ;;
+        *) echo "!! $key must be true or false"; return 1 ;;
       esac ;;
     LaunchDivisor)
       case "$val" in
-        ''|*[!0-9.]*) echo "!! LaunchDivisor 必须是数字（如 3.0）"; return 1 ;;
+        ''|*[!0-9.]*) echo "!! LaunchDivisor must be numeric (e.g. 3.0)"; return 1 ;;
       esac ;;
-    *) echo "!! 未知键 $key（支持 Force120 / LaunchSpeedup / LaunchDivisor / DebugLog）"; return 1 ;;
+    *) echo "!! unknown key $key (Force120 / LaunchSpeedup / LaunchDivisor / DebugLog)"; return 1 ;;
   esac
 
   # 先读现有四个值，缺失的用默认
@@ -123,49 +123,62 @@ case "$1" in
   status|"")
     echo "== Force120Hz $VER =="
 
-    echo "-- 配置（$PREFS）--"
+    echo "-- config ($PREFS) --"
     if [ -s "$PREFS" ]; then
       for k in Force120 LaunchSpeedup LaunchDivisor DebugLog; do
         printf "   %-16s %s\n" "$k" "$(getv $k)"
       done
     else
-      echo "   !! 配置缺失"
+      echo "   !! config missing"
     fi
 
-    echo "-- 安装位置 --"
-    ls -l "$DL" 2>/dev/null | sed 's/^/   /' || echo "   !! 缺失 $DL"
-    ls -l "${DL%.dylib}.plist" 2>/dev/null | sed 's/^/   /' || echo "   !! 缺失 plist"
+    echo "-- install location --"
+    ls -l "$DL" 2>/dev/null | sed 's/^/   /' || echo "   !! missing $DL"
+    ls -l "${DL%.dylib}.plist" 2>/dev/null | sed 's/^/   /' || echo "   !! missing plist"
 
-    echo "-- 加载标记（唯一权威判据：dylib 有没有被执行过）--"
+    echo "-- marker (authoritative: was dylib injected?) --"
     if [ -s "$MARKER" ]; then
-      tail -n 8 "$MARKER" | sed 's/^/   /'
+      # marker 是追加写：每个被注入的进程一行。先汇总，再看明细。
+      total=$(wc -l < "$MARKER" | tr -d ' ')
+      echo "   injected processes: $total"
+      if grep -q 'sb=1' "$MARKER"; then
+        echo "   SpringBoard: INJECTED"
+      else
+        echo "   SpringBoard: NOT injected (only App processes)"
+      fi
+      if grep -q 'safe=1' "$MARKER"; then
+        echo "   !! SAFEMODE marker present -> all hooks disabled"
+        echo "      fix: rm -f $P/com.minis.force120hz.safemode; killall -9 SpringBoard"
+      fi
+      echo "   -- last 6 entries --"
+      tail -n 6 "$MARKER" | sed 's/^/   /'
     else
-      echo "   !! 无 marker = dylib 从未被注入/执行"
+      echo "   !! NO marker = dylib was never injected"
     fi
 
-    echo "-- 崩溃诊断 --"
+    echo "-- crash diagnostics --"
     if [ -s "$CRASH" ]; then
       cat "$CRASH" | sed 's/^/   /'
-      echo "   ^^ dylib 被注入后崩溃了。把这几行贴回来即可定位。"
+      echo "   ^^ dylib crashed after injection. Paste these lines."
     else
-      echo "   无（未崩溃）"
+      echo "   none (no crash)"
     fi
 
-    echo "-- SpringBoard 侧状态（插件写入）--"
+    echo "-- plugin status --"
     if [ -s "$STATUS" ]; then
       cat "$STATUS" | sed 's/^/   /'
     else
-      echo "   !! 无 = 插件未在 SpringBoard 内初始化"
+      echo "   !! none = plugin not initialised"
     fi
 
-    echo "-- 包版本 --"
-    dpkg -l 2>/dev/null | grep -i force120hz | sed 's/^/   /' || echo "   (dpkg -l 查不到)"
+    echo "-- package version --"
+    dpkg -l 2>/dev/null | grep -i force120hz | sed 's/^/   /' || echo "   (not found via dpkg -l)"
 
-    echo "-- 运行日志尾部 --"
+    echo "-- log tail --"
     if [ -s "$LOG" ]; then
       tail -n 15 "$LOG" | sed 's/^/   /'
     else
-      echo "   (无日志)"
+      echo "   (no log)"
     fi
     ;;
   on)     setv Force120 true ;;
@@ -174,54 +187,54 @@ case "$1" in
     case "$2" in
       on)  setv LaunchSpeedup true ;;
       off) setv LaunchSpeedup false ;;
-      *)   echo "用法: f120 launch on|off"; exit 1 ;;
+      *)   echo "usage: f120 launch on|off"; exit 1 ;;
     esac
-    echo "   需 f120 sb 重启 SpringBoard 才会重新探测 duration hooks"
+    echo "   requires: f120 sb"
     ;;
   divisor)
-    [ -z "$2" ] && { echo "用法: f120 divisor <倍数，如 3.0>"; exit 1; }
+    [ -z "$2" ] && { echo "usage: f120 divisor <n, e.g. 3.0>"; exit 1; }
     setv LaunchDivisor "$2"
-    echo "   需 f120 sb 重启 SpringBoard 才生效（1.0 = 不加速，上限 60）"
+    echo "   requires: f120 sb  (1.0 = off, max 30)"
     ;;
-  set)    [ -z "$3" ] && { echo "用法: f120 set <key> <value>"; exit 1; }; setv "$2" "$3" ;;
-  log)    tail -n "${2:-80}" "$LOG" 2>/dev/null || echo "(无日志)" ;;
-  crash)  cat "$CRASH" 2>/dev/null || echo "(无崩溃记录)" ;;
-  install) tail -n "${2:-60}" "$INST" 2>/dev/null || echo "(无安装日志)" ;;
-  clear)  : > "$LOG"; : > "$CRASH"; echo "日志与崩溃记录已清空" ;;
+  set)    [ -z "$3" ] && { echo "usage: f120 set <key> <value>"; exit 1; }; setv "$2" "$3" ;;
+  log)    tail -n "${2:-80}" "$LOG" 2>/dev/null || echo "(no log)" ;;
+  crash)  cat "$CRASH" 2>/dev/null || echo "(no crash record)" ;;
+  install) tail -n "${2:-60}" "$INST" 2>/dev/null || echo "(no install log)" ;;
+  clear)  : > "$LOG"; : > "$CRASH"; echo "log and crash cleared" ;;
   safemode)
     case "$2" in
       on)
         : > "$P/com.minis.force120hz.safemode"
-        echo "安全模式已开启（只写 marker，不装任何 hook）。正在重启 SpringBoard..."
+        echo "SAFEMODE ON (marker only, no hooks). Restarting SpringBoard..."
         killall -9 SpringBoard
         ;;
       off)
         rm -f "$P/com.minis.force120hz.safemode"
-        echo "安全模式已关闭。正在重启 SpringBoard..."
+        echo "SAFEMODE OFF. Restarting SpringBoard..."
         killall -9 SpringBoard
         ;;
       *)
         if [ -f "$P/com.minis.force120hz.safemode" ]; then
-          echo "安全模式: 开启（所有 hook 已禁用）"
+          echo "SafeMode: ON (all hooks disabled)"
         else
-          echo "安全模式: 关闭（正常运行）"
+          echo "SafeMode: OFF (normal)"
         fi
-        echo "用法: f120 safemode on|off"
+        echo "usage: f120 safemode on|off"
         ;;
     esac
     ;;
   panic)
     # 卡死/黑屏循环时的救援：先禁用一切注入，再重启 SpringBoard。
     # 完全不依赖 dpkg —— 只要还能进终端就能救回来。
-    echo "== 紧急救援 =="
+    echo "== EMERGENCY =="
     mv /var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.plist \
-       /tmp/Force120Hz.plist.disabled 2>/dev/null && echo "  plist 已移走 → ellekit 不再加载本插件"
-    : > "$P/com.minis.force120hz.safemode" 2>/dev/null && echo "  安全模式标记已写入"
-    echo "  正在重启 SpringBoard..."
+       /tmp/Force120Hz.plist.disabled 2>/dev/null && echo "  plist moved away -> ellekit will not load this tweak"
+    : > "$P/com.minis.force120hz.safemode" 2>/dev/null && echo "  safemode marker written"
+    echo "  restarting SpringBoard..."
     killall -9 SpringBoard
     echo ""
-    echo "  若恢复正常，用 dpkg -r com.minis.force120hz 彻底卸载，然后告诉我现象。"
+    echo "  If recovered: dpkg -r com.minis.force120hz, then report findings."
     ;;
-  sb)     killall -9 SpringBoard; echo "SpringBoard 已重启（等 15-20 秒再 f120 status）" ;;
+  sb)     killall -9 SpringBoard; echo "SpringBoard restarted (wait 15-20s, then f120 status)" ;;
   *)      sed -n '2,22p' "$0" ;;
 esac
