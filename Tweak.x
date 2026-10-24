@@ -209,15 +209,21 @@ static void postStatus(void) {
     } @catch (id e) {}
 }
 
-static void onNotify(int) { refreshConfig(); applyAllScenes(); postStatus(); }
+static void onNotify(int token) {
+    (void)token;
+    refreshConfig();
+    applyAllScenes();
+    postStatus();
+}
 
-static void onToggle120(int) {
+static void onToggle120(int token) {
+    (void)token;
     gForce120 = !gForce120;
     DBLog(@"toggle120 -> %@", gForce120?@"ON":@"OFF");
     postStatus();
 }
 
-static void onToggleLaunch(int) {
+static void onToggleLaunch(int token) {
     gLaunchSpeedup = !gLaunchSpeedup;
     DBLog(@"toggleLaunch -> %@", gLaunchSpeedup?@"ON":@"OFF");
     postStatus();
