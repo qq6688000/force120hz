@@ -44,7 +44,7 @@
 #import <time.h>
 #import <sys/stat.h>
 
-#define kVersion "1.0.7"
+#define kVersion "1.0.8"
 
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
 static const char *kMarkerPath = "/var/mobile/Library/Preferences/com.minis.force120hz.loaded";
@@ -162,22 +162,42 @@ static void refreshConfig(void) {
 %end
 
 // CADisplayLink.h — 这三个在 SDK header 里都有明确声明，签名确定。
+// 正在录屏 / 投屏时不要干预帧率。
+// 录屏管线需要把帧压到 60 或更低来编码，我们强制 120 会让它起不来。
+// UIScreen.isCaptured 是 iOS 11+ 的公开 API。
+static BOOL isScreenCaptured(void) {
+    @try {
+        UIScreen *sc = [UIScreen mainScreen];
+        if (sc && [sc respondsToSelector:@selector(isCaptured)]) return sc.isCaptured;
+    } @catch (id e) {}
+    return NO;
+}
+
 %hook CADisplayLink
 + (instancetype)displayLinkWithTarget:(id)target selector:(SEL)sel {
     CADisplayLink *dl = %orig;
-    if (gForce120 && !gSafeMode && dl) {
+    if (gForce120 && !gSafeMode && dl && !isScreenCaptured()) {
         @try {
-            // iOS 15+ 才有 preferredFrameRateRange，先确认再设
-            if ([dl respondsToSelector:@selector(setPreferredFrameRateRange:)])
-                dl.preferredFrameRateRange = CAFrameRateRangeMake(120.0f, 120.0f, 120.0f);
+            if ([dl respondsToSelector:@selector(setPreferredFrameRateRange:)]) {
+                // ★ minimum 不能等于 120。等于 120 是「禁止降帧」，会让系统在需要
+                //   降到 60 的场合（录屏编码、低电量、部分系统 UI）无法工作。
+                //   maximum/preferred 都 120 已经能拿到满帧，minimum 留 60 是为了
+                //   保留系统正常的自适应能力。1.0.7 之前这里是 (120,120,120)，
+                //   导致录屏不可用。
+                dl.preferredFrameRateRange = CAFrameRateRangeMake(60.0f, 120.0f, 120.0f);
+            }
         } @catch (id e) { rawLog("displayLink set range threw"); }
     }
     return dl;
 }
 
 - (void)setPreferredFrameRateRange:(CAFrameRateRange)r {
-    if (gForce120 && !gSafeMode) {
-        r.minimum = 120.0f; r.maximum = 120.0f; r.preferred = 120.0f;
+    if (gForce120 && !gSafeMode && !isScreenCaptured()) {
+        // 只抬高上限和偏好值，保留下限（或至少给到 60）
+        r.maximum = 120.0f;
+        r.preferred = 120.0f;
+        if (r.minimum > 60.0f && r.minimum >= r.maximum) r.minimum = 60.0f;
+        if (r.minimum > 120.0f) r.minimum = 60.0f;
     }
     %orig(r);
 }
@@ -242,12 +262,15 @@ static NSString *statusString(void) {
             @"  Force120      = %-3s\n"
             @"  LaunchSpeedup = %-3s  divisor=%.1f\n"
             @"  SafeMode      = %-3s%s\n"
+            @"  Captured      = %-3s%s\n"
             @"  launch-hooks  = %d",
             kVersion, pn(), isSB() ? 1 : 0, getpid(),
             gForce120 ? "YES" : "NO",
             gLaunchSpeedup ? "YES" : "NO", gLaunchDivisor,
             gSafeMode ? "YES" : "NO",
             gSafeMode ? "  (marker-only, no hooks)" : "",
+            isScreenCaptured() ? "YES" : "NO",
+            isScreenCaptured() ? "  (frame-rate forcing suspended)" : "",
             gLaunchHooks];
     } @catch (id e) { return @"status threw"; }
 }
@@ -319,6 +342,21 @@ static void f120_early(void) {
         } else {
             gLaunchHooks = 0;
         }
+
+        // 录屏开始/结束时立刻记录一条，方便排查。
+        // 帧率干预已经在 isScreenCaptured() 里自动让路，这里只是留痕。
+        @try {
+            [NSNotificationCenter.defaultCenter addObserverForName:UIScreenCapturedDidChangeNotification
+                                                            object:nil queue:nil
+                                                        usingBlock:^(NSNotification *n) {
+                @try {
+                    BOOL cap = [UIScreen mainScreen].isCaptured;
+                    rawLog("screen captured changed -> %d (frame-rate forcing %s)",
+                           cap, cap ? "SUSPENDED" : "active");
+                    postStatus();
+                } @catch (id e) {}
+            }];
+        } @catch (id e) {}
 
         static int tok = 0;
         notify_register_dispatch(kNfReload, &tok, dispatch_get_main_queue(), ^(int t){ onReload(t); });
