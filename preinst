@@ -1,0 +1,17 @@
+#!/bin/sh
+# preinst：dpkg 解包之前运行。
+#
+# 只删符号链接，绝不碰真实文件（真实文件 dpkg 能正常覆盖）。
+# 只处理 DynamicLibraries —— /var/jb/usr/lib/TweakInject 在本设备不可写，
+# 本包不往那里写任何东西，因此也不必清理。
+JB=/var/jb
+[ -d "$JB" ] || JB=""
+
+DL="$JB/Library/MobileSubstrate/DynamicLibraries"
+[ -d "$DL" ] || exit 0
+
+for f in Force120Hz.dylib Force120Hz.plist; do
+    p="$DL/$f"
+    [ -L "$p" ] && rm -f "$p" 2>/dev/null
+done
+exit 0

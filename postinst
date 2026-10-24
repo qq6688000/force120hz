@@ -1,0 +1,108 @@
+#!/bin/sh
+# Force120Hz 1.0.0 postinst
+#
+# 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
+#   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
+#   dpkg 在 unpack 阶段会整体失败（不是该文件失败，是整个包失败）。
+#   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
+#   探测失败不影响安装结果。
+
+PREF_DIR="/var/mobile/Library/Preferences"
+mkdir -p "$PREF_DIR"
+
+JB=/var/jb
+[ -d "$JB" ] || JB=""
+
+DL="$JB/Library/MobileSubstrate/DynamicLibraries"
+TI="$JB/usr/lib/TweakInject"
+
+DYLIB="$DL/Force120Hz.dylib"
+PLIST="$DL/Force120Hz.plist"
+
+chmod 755 "$DYLIB" 2>/dev/null || true
+chmod 644 "$PLIST" 2>/dev/null || true
+
+# ---- 镜像到 TweakInject（仅当该目录真实可用且与 DL 不是同一目录）----
+if [ -d "$TI" ] && [ -w "$TI" ] && [ -f "$DYLIB" ]; then
+    TI_REAL=$(cd "$TI" 2>/dev/null && pwd -P 2>/dev/null)
+    DL_REAL=$(cd "$DL" 2>/dev/null && pwd -P 2>/dev/null)
+
+    if [ -n "$TI_REAL" ] && [ "$TI_REAL" != "$DL_REAL" ]; then
+        # 真实副本，不用符号链接（ln -sf X X 曾把 dylib 毁成 67 字节自指链接）
+        rm -f "$TI/Force120Hz.dylib" "$TI/Force120Hz.plist" 2>/dev/null || true
+        cp -f "$DYLIB" "$TI/Force120Hz.dylib" 2>/dev/null && \
+            chmod 755 "$TI/Force120Hz.dylib" 2>/dev/null || true
+        cp -f "$PLIST" "$TI/Force120Hz.plist" 2>/dev/null && \
+            chmod 644 "$TI/Force120Hz.plist" 2>/dev/null || true
+        echo "  mirrored to TweakInject: $TI"
+    else
+        echo "  TweakInject 与 DynamicLibraries 同一目录，无需镜像"
+    fi
+else
+    echo "  TweakInject 不可用/不存在，跳过（DynamicLibraries 已装好）"
+fi
+
+# ---- 配置：只补缺失键，不覆盖用户已有设置 ----
+PREFS="$PREF_DIR/com.minis.force120hz.plist"
+if [ ! -f "$PREFS" ]; then
+    cat > "$PREFS" <<'PLIST'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Force120</key>       <true/>
+	<key>LaunchSpeedup</key>  <true/>
+	<key>LaunchDivisor</key>  <real>3.0</real>
+	<key>DebugLog</key>       <true/>
+</dict>
+</plist>
+PLIST
+    chown mobile:mobile "$PREFS" 2>/dev/null || true
+    chmod 644 "$PREFS"
+else
+    if command -v /usr/bin/plutil >/dev/null 2>&1; then
+        add_key() {
+            /usr/bin/plutil -extract "$1" raw "$PREFS" >/dev/null 2>&1 && return 0
+            /usr/bin/plutil -insert "$1" -"$2" "$3" "$PREFS" 2>/dev/null || true
+        }
+        add_key Force120      bool true
+        add_key LaunchSpeedup bool true
+        add_key LaunchDivisor real 3.0
+        add_key DebugLog      bool true
+        chown mobile:mobile "$PREFS" 2>/dev/null || true
+    fi
+fi
+
+# ---- 日志与状态文件，权限给足 ----
+LOG="$PREF_DIR/com.minis.force120hz.log"
+[ -f "$LOG" ] || : > "$LOG"
+chown mobile:mobile "$LOG" 2>/dev/null || true
+chmod 666 "$LOG"
+
+for f in com.minis.force120hz.marker com.minis.force120hz.status; do
+    [ -f "$PREF_DIR/$f" ] && { chown mobile:mobile "$PREF_DIR/$f" 2>/dev/null || true; chmod 666 "$PREF_DIR/$f"; }
+done
+
+# ---- CLI ----
+for p in /var/jb/usr/bin/f120 /usr/bin/f120; do
+    [ -f "$p" ] && chmod 755 "$p"
+done
+
+killall -9 SpringBoard 2>/dev/null || true
+
+echo ""
+echo "Force120Hz 1.0.0 已安装（全局 120Hz + 启动动画 x3）"
+echo ""
+echo "  dylib: $DL/Force120Hz.dylib  ($(wc -c < "$DYLIB" 2>/dev/null) bytes)"
+if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
+    echo "  ellekit: $TI/Force120Hz.dylib  ($(wc -c < "$TI/Force120Hz.dylib" 2>/dev/null) bytes)"
+fi
+echo ""
+echo "下一步："
+echo "  f120 status    一条命令看全部状态（含 SpringBoard 内装了几个 duration hook）"
+echo "  f120 sb        需要重启 SpringBoard 时"
+echo ""
+echo "若 launch-hooks = 0：说明这个 iOS 版本上候选的 SBApp* 类/方法都不存在，"
+echo "                     把 f120 log 贴回来即可定位真实类名。"
+echo ""
+exit 0

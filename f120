@@ -1,0 +1,96 @@
+#!/bin/sh
+# f120 - Force120Hz 控制工具
+#   f120 status              配置 + SpringBoard 侧状态 + 加载标记 + 日志尾部
+#   f120 on | off            120Hz 总开关
+#   f120 launch on|off       启动动画加速开关
+#   f120 divisor 3.0         加速倍数（1.0 = 不加速，默认 3.0）
+#   f120 set <key> <value>   设置任意键
+#   f120 log [n]             看日志
+#   f120 logclear            清日志
+#   f120 sb                  重启 SpringBoard（应用更改用）
+#
+# 注意：LaunchSpeedup / LaunchDivisor 只在 SpringBoard 进程内读取，改了必须 f120 sb。
+#       Force120 是进程内的运行时开关（toggle120 通知），改 plist 也需要重启进程才生效。
+
+PREFS=/var/mobile/Library/Preferences/com.minis.force120hz.plist
+LOG=/var/mobile/Library/Preferences/com.minis.force120hz.log
+MARKER=/var/mobile/Library/Preferences/com.minis.force120hz.loaded
+STATUS=/var/mobile/Library/Preferences/com.minis.force120hz.status
+DL=/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib
+
+getv() {
+  if command -v plutil >/dev/null 2>&1; then
+    plutil -extract "$1" raw "$PREFS" 2>/dev/null
+  else
+    /usr/libexec/PlistBuddy -c "Print :$1" "$PREFS" 2>/dev/null
+  fi
+}
+
+setv() {
+  key="$1"; val="$2"
+  case "$val" in
+    true|false) t=bool ;;
+    *) t=string ;;
+  esac
+  if command -v plutil >/dev/null 2>&1; then
+    plutil -replace "$key" -"$t" "$val" "$PREFS" 2>/dev/null \
+      || plutil -insert "$key" -"$t" "$val" "$PREFS" 2>/dev/null
+  else
+    /usr/libexec/PlistBuddy -c "Set :$key $val" "$PREFS" 2>/dev/null \
+      || /usr/libexec/PlistBuddy -c "Add :$key $t $val" "$PREFS" 2>/dev/null
+  fi
+  chown mobile:mobile "$PREFS" 2>/dev/null
+  notify_post_key com.minis.force120hz.reload
+  echo "$key = $val"
+}
+
+notify_post_key() {
+  notifyutil -p "$1" 2>/dev/null || notify_post "$1" 2>/dev/null
+}
+
+case "$1" in
+  status)
+    echo "== Force120Hz 1.0.0 =="
+    echo "-- 配置 --"
+    for k in Force120 LaunchSpeedup LaunchDivisor DebugLog; do
+      printf "   %-16s %s\n" "$k" "$(getv $k)"
+    done
+
+    echo "== 安装位置 =="
+    ls -l "$DL" 2>/dev/null | sed 's/^/   /' || echo "   !! 缺失 $DL"
+    ls -l /var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.plist 2>/dev/null \
+      | sed 's/^/   /' || echo "   !! 缺失 plist"
+
+    echo "== 加载标记（不看 DebugLog，只回答「有没有被执行过」）=="
+    if [ -s "$MARKER" ]; then tail -n 8 "$MARKER" | sed 's/^/   /'; else echo "   !! 无 $MARKER = dylib 从未被执行"; fi
+
+    echo "== SpringBoard 侧状态（由插件写入，含 launch-hooks 数）=="
+    if [ -s "$STATUS" ]; then cat "$STATUS" | sed 's/^/   /'; else echo "   !! 无 $STATUS = 插件未在 SpringBoard 内初始化"; fi
+
+    echo "== 包版本 =="
+    dpkg -l 2>/dev/null | grep -i force120hz | sed 's/^/   /' || echo "   (dpkg -l 查不到)"
+
+    echo "== 日志尾部 =="
+    tail -n 15 "$LOG" 2>/dev/null | sed 's/^/   /' || echo "   (无日志)"
+    ;;
+  on)     setv Force120 true ;;
+  off)    setv Force120 false ;;
+  launch)
+    case "$2" in
+      on)  setv LaunchSpeedup true ;;
+      off) setv LaunchSpeedup false ;;
+      *)   echo "用法: f120 launch on|off"; exit 1 ;;
+    esac
+    echo "   注意：需 f120 sb 重启 SpringBoard 才会重新探测/卸载 duration hooks"
+    ;;
+  divisor)
+    [ -z "$2" ] && { echo "用法: f120 divisor <倍数，如 3.0>"; exit 1; }
+    setv LaunchDivisor "$2"
+    echo "   注意：需 f120 sb 重启 SpringBoard 才生效"
+    ;;
+  set)    [ -z "$3" ] && { echo "用法: f120 set <key> <value>"; exit 1; }; setv "$2" "$3" ;;
+  log)    tail -n "${2:-80}" "$LOG" 2>/dev/null || echo "(无日志)" ;;
+  logclear) : > "$LOG"; echo "日志已清空" ;;
+  sb)     killall -9 SpringBoard; echo "SpringBoard 已重启" ;;
+  *)      sed -n '2,15p' "$0" ;;
+esac

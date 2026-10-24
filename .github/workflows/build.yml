@@ -1,0 +1,94 @@
+name: Build Force120Hz
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dpkg and ldid
+        run: brew install dpkg ldid
+
+      - name: Install Theos
+        run: |
+          sudo mkdir -p /opt/theos
+          sudo chown $(whoami) /opt/theos
+          git clone --depth=1 --recursive https://github.com/theos/theos.git /opt/theos
+
+      - name: Install SDK
+        run: |
+          cd /opt/theos/sdks
+          git clone --depth=1 https://github.com/theos/sdks.git sdks-tmp
+          cp -r sdks-tmp/iPhoneOS16.5.sdk .
+          rm -rf sdks-tmp
+
+      - name: Regenerate launch hooks
+        run: |
+          python3 gen_launch.py > LaunchSpeedup.inc
+          echo "=== LaunchSpeedup.inc lines ==="
+          wc -l LaunchSpeedup.inc
+
+      - name: Build
+        run: |
+          export THEOS=/opt/theos
+          export THEOS_PACKAGE_SCHEME=rootless
+          make clean || true
+          make FINALPACKAGE=1
+
+      - name: Verify dylib
+        run: |
+          DYLIB=".theos/obj/Force120Hz.dylib"
+          echo "=== Architecture ==="
+          lipo -info "$DYLIB" || file "$DYLIB"
+          echo "=== PAC stubs (arm64e) ==="
+          otool -tv -arch arm64e "$DYLIB" | grep -c paciza || echo "0"
+          echo "=== Load commands ==="
+          otool -L "$DYLIB"
+          echo "=== cryptid ==="
+          otool -l "$DYLIB" | grep -A4 LC_ENCRYPTION_INFO || echo "no cryptid"
+
+      - name: Convert plist to binary
+        run: plutil -convert binary1 Force120Hz.plist -o Force120Hz_bplist.plist
+
+      - name: Stage and build deb
+        run: |
+          VERSION=$(grep '^Version:' control | awk '{print $2}')
+          DYLIB=".theos/obj/Force120Hz.dylib"
+          STAGE="/tmp/f120-stage"
+          rm -rf "$STAGE"
+          mkdir -p "$STAGE/DEBIAN"
+          mkdir -p "$STAGE/var/jb/Library/MobileSubstrate/DynamicLibraries"
+          mkdir -p "$STAGE/var/jb/usr/bin"
+
+          cp control "$STAGE/DEBIAN/control"
+          echo "" >> "$STAGE/DEBIAN/control"
+          cp postinst "$STAGE/DEBIAN/postinst"
+          chmod 755 "$STAGE/DEBIAN/postinst"
+          cp preinst "$STAGE/DEBIAN/preinst"
+          chmod 755 "$STAGE/DEBIAN/preinst"
+
+          cp "$DYLIB" "$STAGE/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib"
+          cp Force120Hz_bplist.plist "$STAGE/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.plist"
+          # 注意：绝不把文件写进 /var/jb/usr/lib/TweakInject/
+          # 该路径在本设备上不是可写目录，dpkg 解包时会整体失败。
+          # 由 postinst 在运行时探测该目录是否真的可用，可用才用 cp -f 补一份。
+          cp f120 "$STAGE/var/jb/usr/bin/f120"
+          chmod 755 "$STAGE/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib"
+          chmod 644 "$STAGE/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.plist"
+          chmod 755 "$STAGE/var/jb/usr/bin/f120"
+
+          DEB="com.minis.force120hz_${VERSION}_iphoneos-arm64.deb"
+          dpkg-deb --build --root-owner-group "$STAGE" "$DEB"
+          echo "DEB=$DEB" >> $GITHUB_ENV
+          shasum -a 256 "$DEB"
+          ls -l "$DEB"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: force120hz-deb
+          path: com.minis.force120hz_*.deb
