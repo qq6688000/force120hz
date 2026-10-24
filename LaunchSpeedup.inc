@@ -146,7 +146,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_0, &_orig_0);
             n++;
-            DBLog(@"launch-hook: SBAppLaunchAnimationController :: animationDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchAnimationController :: animationDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -155,7 +155,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_1, &_orig_1);
             n++;
-            DBLog(@"launch-hook: SBAppLaunchAnimationController :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchAnimationController :: duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -164,7 +164,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_2, &_orig_2);
             n++;
-            DBLog(@"launch-hook: SBAppLaunchAnimationController :: _duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchAnimationController :: _duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -173,7 +173,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_3, &_orig_3);
             n++;
-            DBLog(@"launch-hook: SBAppTransition :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -182,7 +182,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_4, &_orig_4);
             n++;
-            DBLog(@"launch-hook: SBAppTransition :: _completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: _completionDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -191,7 +191,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_5, &_orig_5);
             n++;
-            DBLog(@"launch-hook: SBAppTransition :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: completionDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -200,7 +200,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_6, &_orig_6);
             n++;
-            DBLog(@"launch-hook: SBAppTransition :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -209,7 +209,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_7, &_orig_7);
             n++;
-            DBLog(@"launch-hook: SBAppToAppWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -218,7 +218,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_8, &_orig_8);
             n++;
-            DBLog(@"launch-hook: SBAppToAppWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -227,7 +227,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_9, &_orig_9);
             n++;
-            DBLog(@"launch-hook: SBAppToAppWorkspaceTransaction :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -236,7 +236,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_10, &_orig_10);
             n++;
-            DBLog(@"launch-hook: SBAppToHomeWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -245,7 +245,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_11, &_orig_11);
             n++;
-            DBLog(@"launch-hook: SBAppToHomeWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -254,7 +254,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_12, &_orig_12);
             n++;
-            DBLog(@"launch-hook: SBAppToHomeWorkspaceTransaction :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -263,7 +263,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_13, &_orig_13);
             n++;
-            DBLog(@"launch-hook: SBAppActivationWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppActivationWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -272,7 +272,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_14, &_orig_14);
             n++;
-            DBLog(@"launch-hook: SBAppActivationWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppActivationWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -281,7 +281,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_15, &_orig_15);
             n++;
-            DBLog(@"launch-hook: SBAppDeactivationWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppDeactivationWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -290,7 +290,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_16, &_orig_16);
             n++;
-            DBLog(@"launch-hook: SBAppDeactivationWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppDeactivationWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -299,7 +299,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_17, &_orig_17);
             n++;
-            DBLog(@"launch-hook: SBApplicationLaunchTransition :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBApplicationLaunchTransition :: duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     {
@@ -308,7 +308,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_18, &_orig_18);
             n++;
-            DBLog(@"launch-hook: SBAppLaunchTransition :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchTransition :: duration (divisor=%.1f)", gLaunchDivisor);
         }
     }
     return n;

@@ -71,7 +71,7 @@ for i, (cls, sel, hasArg) in enumerate(CANDIDATES):
     out.append("        if (c && [c instancesRespondToSelector:s]) {")
     out.append("            MSHookMessageEx(c, s, (IMP)%s, &_orig_%d);" % (fn, i))
     out.append("            n++;")
-    out.append('            DBLog(@"launch-hook: %s :: %s (divisor=%%.1f)", gLaunchDivisor);' % (cls, sel))
+    out.append('            rawLog("launch-hook: %s :: %s (divisor=%%.1f)", gLaunchDivisor);' % (cls, sel))
     out.append("        }")
     out.append("    }")
 out.append("    return n;")

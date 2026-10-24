@@ -78,6 +78,13 @@ static const char *pn(void) { const char *p = getprogname(); return p ? p : "?";
 
 static int isSB(void) { const char *p = getprogname(); return p && strcmp(p, "SpringBoard") == 0; }
 
+// 进程里有没有 UIKit —— 用来挡 Filter.Mode=Any 注入进来的守护进程。
+// NSClassFromString 不需要 UIKit 链接就能调，找不到就返回 nil。
+static BOOL hasUIKit(void) {
+    @try { return NSClassFromString(@"UIApplication") != nil; }
+    @catch (id e) { return NO; }
+}
+
 // 追加一行到 .log。注意：本函数不是信号安全的（用了 strftime），只在正常路径调用。
 static void rawLog(const char *fmt, ...) {
     if (!gDebugLog) return;
@@ -153,19 +160,21 @@ static void sigDump(int sig, siginfo_t *si, void *ctx) {
         case SIGABRT: prev = &s_prevAb;   break;
         case SIGILL:  prev = &s_prevIll;  break;
     }
-    if (prev && prev->sa_handler != SIG_DFL && prev->sa_handler != SIG_IGN
-                && prev->sa_handler != sigDump) {
-        // 链回宿主进程自己的 handler，不掩盖原有行为
-        // 注意：sa_handler 与 sa_sigaction 是 union，但签名不同 —— 必须经 sa_sigaction 调用
-        prev->sa_sigaction(sig, si, ctx);
-    } else {
-        struct sigaction d;
-        memset(&d, 0, sizeof(d));
-        sigemptyset(&d.sa_mask);
-        d.sa_handler = SIG_DFL;
-        sigaction(sig, &d, NULL);
-        raise(sig);
+    if (prev) {
+        void *ph = (void *)prev->sa_sigaction;
+        if (ph != (void *)SIG_DFL && ph != (void *)SIG_IGN && ph != (void *)sigDump) {
+            // 链回宿主进程自己的 handler，不掩盖原有行为
+            // 注意：sa_handler 与 sa_sigaction 是 union，但签名不同 —— 必须经 sa_sigaction 调用
+            prev->sa_sigaction(sig, si, ctx);
+            return;
+        }
     }
+    struct sigaction d;
+    memset(&d, 0, sizeof(d));
+    sigemptyset(&d.sa_mask);
+    d.sa_handler = SIG_DFL;
+    sigaction(sig, &d, NULL);
+    raise(sig);
 }
 
 static void exDump(NSException *ex) {
