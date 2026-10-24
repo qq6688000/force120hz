@@ -29,28 +29,35 @@ INST="$P/com.minis.force120hz.install.log"
 MARKER="$P/com.minis.force120hz.loaded"
 STATUS="$P/com.minis.force120hz.status"
 DL=/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib
-VER=1.0.1
+VER=1.0.2
 
-# ---- 纯 POSIX 的 plist 读取（不依赖 plutil / PlistBuddy）----
-# 关键：先把每个 XML 标签拆到独立行，"<key>X</key><true/>" 这种同行写法也能正确解析。
-# （1.0.0 的 awk 用 next 跳过 key 行，而 postinst 把值写在同一行 → 永远读空。）
-norm() { sed 's/>[ \t]*</>\n</g' "$PREFS" 2>/dev/null | sed 's/^[ \t]*//; s/[ \t]*$//'; }
-
+# ---- 纯 POSIX 的 plist 读取（不依赖 plutil / awk，只用 grep+sed）----
+# 设备上没装 awk！所以这里全程 grep+sed。postinst 把 key 和值写在同一行，
+# 这里也兼容值在下一行的 plutil 格式。
 getv() {
   [ -f "$PREFS" ] || { echo ""; return; }
-  v=$(norm | awk -v k="<key>$1</key>" '
-        $0 == k { getline; print; exit }
-      ')
+  # 取包含该 key 的那一行
+  line=$(grep -m1 "<key>$1</key>" "$PREFS" 2>/dev/null) || { echo ""; return; }
+  # 同行的值：删掉 key 标签及之前的所有内容
+  v=$(printf '%s' "$line" | sed "s/.*<key>$1<\/key>[[:space:]]*//; s/[[:space:]]*$//")
   case "$v" in
-    "<true/>")  echo "true" ;;
-    "<false/>") echo "false" ;;
-    "")
-      # 值可能是 <string></string> 空串等
-      echo ""
-      ;;
-    *)
-      printf '%s\n' "$v" | sed -e 's/^<[a-z]*>//' -e 's/<\/[a-z]*>$//'
-      ;;
+    "<true/>"*)  echo "true";  return ;;
+    "<false/>"*) echo "false"; return ;;
+    "<real>"*)   printf '%s\n' "$v" | sed 's/<\/real>//; s/<real>//; s/[[:space:]]//g'; return ;;
+    "<integer>"*) printf '%s\n' "$v" | sed 's/<\/integer>//; s/<integer>//; s/[[:space:]]//g'; return ;;
+    "<string>"*) printf '%s\n' "$v" | sed 's/<\/string>//; s/<string>//'; return ;;
+    "") : ;;  # 值在下一行，下面处理
+    *) return ;;
+  esac
+  # 值在下一行：grep -A1 拿 key 行 + 下一行，取第二行
+  nxt=$(grep -A1 -m1 "<key>$1</key>" "$PREFS" 2>/dev/null | sed -n '2p')
+  case "$nxt" in
+    *"<true/>"*)  echo "true" ;;
+    *"<false/>"*) echo "false" ;;
+    *"<real>"*)   printf '%s\n' "$nxt" | sed 's/.*<real>//; s/<\/real>.*//; s/[[:space:]]//g' ;;
+    *"<integer>"*) printf '%s\n' "$nxt" | sed 's/.*<integer>//; s/<\/integer>.*//; s/[[:space:]]//g' ;;
+    *"<string>"*) printf '%s\n' "$nxt" | sed 's/.*<string>//; s/<\/string>.*//' ;;
+    *) echo "" ;;
   esac
 }
 
