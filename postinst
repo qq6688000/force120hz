@@ -1,5 +1,5 @@
 #!/bin/sh
-# Force120Hz 1.0.3 postinst
+# Force120Hz 1.0.4 postinst
 #
 # 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
 #   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
@@ -7,7 +7,7 @@
 #   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
 #   探测失败不影响安装结果。
 #
-# 1.0.3 改动：每一步都追加记录到 .install.log。
+# 1.0.4 改动：每一步都追加记录到 .install.log。
 #   用户设备上出现过「postinst 跑了、log 文件建了、但 plist 和 marker 都没有」的情况，
 #   当时无法判断 postinst 死在哪一步。现在每一步都有痕迹，可直接定位。
 
@@ -24,7 +24,7 @@ note() {
     echo "  $1"
 }
 
-note "===== postinst 1.0.3 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
+note "===== postinst 1.0.4 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
 
 JB=/var/jb
 [ -d "$JB" ] || JB=""
@@ -80,7 +80,7 @@ if [ ! -f "$PREFS" ]; then
 <plist version="1.0">
 <dict>
 	<key>Force120</key>       <true/>
-	<key>LaunchSpeedup</key>  <true/>
+	<key>LaunchSpeedup</key>  <false/>
 	<key>LaunchDivisor</key>  <real>3.0</real>
 	<key>DebugLog</key>       <true/>
 </dict>
@@ -101,7 +101,7 @@ else
             /usr/bin/plutil -insert "$1" -"$2" "$3" "$PREFS" 2>/dev/null || return 0
         }
         add_key Force120      bool true
-        add_key LaunchSpeedup bool true
+        add_key LaunchSpeedup bool false
         add_key LaunchDivisor real 3.0
         add_key DebugLog      bool true
         chown mobile:mobile "$PREFS" 2>/dev/null || true
@@ -122,6 +122,9 @@ for f in com.minis.force120hz.log \
 done
 note "日志/崩溃/marker/status 文件已就位并 chmod 666"
 
+# 新安装默认退出安全模式（万一上次是紧急救援状态）
+rm -f "$PREF_DIR/com.minis.force120hz.safemode" 2>/dev/null || true
+
 # ---- CLI ----
 for p in /var/jb/usr/bin/f120 /usr/bin/f120; do
     [ -f "$p" ] && { chmod 755 "$p"; note "CLI 就位: $p"; }
@@ -132,7 +135,7 @@ note "重启 SpringBoard..."
 killall -9 SpringBoard 2>/dev/null || note "WARN killall SpringBoard 失败"
 
 echo ""
-echo "Force120Hz 1.0.3 已安装（全局 120Hz + 启动动画 x3）"
+echo "Force120Hz 1.0.4 已安装（全局 120Hz + 启动动画 x3）"
 echo ""
 echo "  dylib: $DL/Force120Hz.dylib"
 if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
@@ -150,5 +153,5 @@ echo "  f120 crash         → 打印崩溃诊断（信号号 + 进程 + 所处�
 echo ""
 echo "★ 若 .crash 有内容：dylib 加载后崩溃了，把那几行贴回来即可定位。"
 echo ""
-note "===== postinst 1.0.3 end ====="
+note "===== postinst 1.0.4 end ====="
 exit 0

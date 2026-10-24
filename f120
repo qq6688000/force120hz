@@ -9,6 +9,8 @@
 #   f120 crash               看崩溃诊断（dylib 被注入后崩了才会写）
 #   f120 install             看 postinst 每一步的安装轨迹
 #   f120 clear               清空 日志+崩溃
+#   f120 safemode [on|off]   安全模式（只写 marker，不装 hook）★ 卡死时用
+#   f120 panic               紧急救援：禁用注入 + 重启 SpringBoard ★ 黑屏循环时用
 #   f120 sb                  重启 SpringBoard
 #
 # ★ 关键判据：
@@ -29,7 +31,7 @@ INST="$P/com.minis.force120hz.install.log"
 MARKER="$P/com.minis.force120hz.loaded"
 STATUS="$P/com.minis.force120hz.status"
 DL=/var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.dylib
-VER=1.0.3
+VER=1.0.4
 
 # ---- 纯 POSIX 的 plist 读取（不依赖 plutil / awk，只用 grep+sed）----
 # 设备上没装 awk！所以这里全程 grep+sed。postinst 把 key 和值写在同一行，
@@ -186,6 +188,40 @@ case "$1" in
   crash)  cat "$CRASH" 2>/dev/null || echo "(无崩溃记录)" ;;
   install) tail -n "${2:-60}" "$INST" 2>/dev/null || echo "(无安装日志)" ;;
   clear)  : > "$LOG"; : > "$CRASH"; echo "日志与崩溃记录已清空" ;;
+  safemode)
+    case "$2" in
+      on)
+        : > "$P/com.minis.force120hz.safemode"
+        echo "安全模式已开启（只写 marker，不装任何 hook）。正在重启 SpringBoard..."
+        killall -9 SpringBoard
+        ;;
+      off)
+        rm -f "$P/com.minis.force120hz.safemode"
+        echo "安全模式已关闭。正在重启 SpringBoard..."
+        killall -9 SpringBoard
+        ;;
+      *)
+        if [ -f "$P/com.minis.force120hz.safemode" ]; then
+          echo "安全模式: 开启（所有 hook 已禁用）"
+        else
+          echo "安全模式: 关闭（正常运行）"
+        fi
+        echo "用法: f120 safemode on|off"
+        ;;
+    esac
+    ;;
+  panic)
+    # 卡死/黑屏循环时的救援：先禁用一切注入，再重启 SpringBoard。
+    # 完全不依赖 dpkg —— 只要还能进终端就能救回来。
+    echo "== 紧急救援 =="
+    mv /var/jb/Library/MobileSubstrate/DynamicLibraries/Force120Hz.plist \
+       /tmp/Force120Hz.plist.disabled 2>/dev/null && echo "  plist 已移走 → ellekit 不再加载本插件"
+    : > "$P/com.minis.force120hz.safemode" 2>/dev/null && echo "  安全模式标记已写入"
+    echo "  正在重启 SpringBoard..."
+    killall -9 SpringBoard
+    echo ""
+    echo "  若恢复正常，用 dpkg -r com.minis.force120hz 彻底卸载，然后告诉我现象。"
+    ;;
   sb)     killall -9 SpringBoard; echo "SpringBoard 已重启（等 15-20 秒再 f120 status）" ;;
   *)      sed -n '2,22p' "$0" ;;
 esac

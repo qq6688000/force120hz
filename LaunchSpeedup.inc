@@ -47,8 +47,8 @@ static double _lhook_5(id self, SEL _cmd) {
 }
 
 static IMP _orig_6 = NULL;
-static double _lhook_6(id self, SEL _cmd, id ctx) {
-    double d = _orig_6 ? ((double(*)(id,SEL,id))_orig_6)(self,_cmd,ctx) : 0.0;
+static double _lhook_6(id self, SEL _cmd) {
+    double d = _orig_6 ? ((double(*)(id,SEL))_orig_6)(self,_cmd) : 0.0;
     if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
     return d;
 }
@@ -61,8 +61,8 @@ static double _lhook_7(id self, SEL _cmd) {
 }
 
 static IMP _orig_8 = NULL;
-static double _lhook_8(id self, SEL _cmd, id ctx) {
-    double d = _orig_8 ? ((double(*)(id,SEL,id))_orig_8)(self,_cmd,ctx) : 0.0;
+static double _lhook_8(id self, SEL _cmd) {
+    double d = _orig_8 ? ((double(*)(id,SEL))_orig_8)(self,_cmd) : 0.0;
     if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
     return d;
 }
@@ -82,8 +82,8 @@ static double _lhook_10(id self, SEL _cmd) {
 }
 
 static IMP _orig_11 = NULL;
-static double _lhook_11(id self, SEL _cmd, id ctx) {
-    double d = _orig_11 ? ((double(*)(id,SEL,id))_orig_11)(self,_cmd,ctx) : 0.0;
+static double _lhook_11(id self, SEL _cmd) {
+    double d = _orig_11 ? ((double(*)(id,SEL))_orig_11)(self,_cmd) : 0.0;
     if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
     return d;
 }
@@ -96,49 +96,14 @@ static double _lhook_12(id self, SEL _cmd) {
 }
 
 static IMP _orig_13 = NULL;
-static double _lhook_13(id self, SEL _cmd, id ctx) {
-    double d = _orig_13 ? ((double(*)(id,SEL,id))_orig_13)(self,_cmd,ctx) : 0.0;
-    if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
-    return d;
-}
-
-static IMP _orig_14 = NULL;
-static double _lhook_14(id self, SEL _cmd) {
-    double d = _orig_14 ? ((double(*)(id,SEL))_orig_14)(self,_cmd) : 0.0;
-    if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
-    return d;
-}
-
-static IMP _orig_15 = NULL;
-static double _lhook_15(id self, SEL _cmd, id ctx) {
-    double d = _orig_15 ? ((double(*)(id,SEL,id))_orig_15)(self,_cmd,ctx) : 0.0;
-    if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
-    return d;
-}
-
-static IMP _orig_16 = NULL;
-static double _lhook_16(id self, SEL _cmd) {
-    double d = _orig_16 ? ((double(*)(id,SEL))_orig_16)(self,_cmd) : 0.0;
-    if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
-    return d;
-}
-
-static IMP _orig_17 = NULL;
-static double _lhook_17(id self, SEL _cmd) {
-    double d = _orig_17 ? ((double(*)(id,SEL))_orig_17)(self,_cmd) : 0.0;
-    if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
-    return d;
-}
-
-static IMP _orig_18 = NULL;
-static double _lhook_18(id self, SEL _cmd) {
-    double d = _orig_18 ? ((double(*)(id,SEL))_orig_18)(self,_cmd) : 0.0;
+static double _lhook_13(id self, SEL _cmd) {
+    double d = _orig_13 ? ((double(*)(id,SEL))_orig_13)(self,_cmd) : 0.0;
     if (gLaunchSpeedup && d > 0.0 && gLaunchDivisor > 0.0) d /= gLaunchDivisor;
     return d;
 }
 
 static int installLaunchSpeedupHooks(void) {
-    if (!gLaunchSpeedup) return 0;
+    if (!gLaunchSpeedup || gSafeMode) return 0;
     int n = 0;
     {
         Class c = objc_getClass("SBAppLaunchAnimationController");
@@ -146,7 +111,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_0, &_orig_0);
             n++;
-            rawLog("launch-hook: SBAppLaunchAnimationController :: animationDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchAnimationController :: animationDuration");
         }
     }
     {
@@ -155,7 +120,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_1, &_orig_1);
             n++;
-            rawLog("launch-hook: SBAppLaunchAnimationController :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchAnimationController :: duration");
         }
     }
     {
@@ -164,7 +129,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_2, &_orig_2);
             n++;
-            rawLog("launch-hook: SBAppLaunchAnimationController :: _duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchAnimationController :: _duration");
         }
     }
     {
@@ -173,7 +138,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_3, &_orig_3);
             n++;
-            rawLog("launch-hook: SBAppTransition :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: duration");
         }
     }
     {
@@ -182,7 +147,7 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_4, &_orig_4);
             n++;
-            rawLog("launch-hook: SBAppTransition :: _completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: _completionDuration");
         }
     }
     {
@@ -191,124 +156,79 @@ static int installLaunchSpeedupHooks(void) {
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_5, &_orig_5);
             n++;
-            rawLog("launch-hook: SBAppTransition :: completionDuration (divisor=%.1f)", gLaunchDivisor);
-        }
-    }
-    {
-        Class c = objc_getClass("SBAppTransition");
-        SEL s = sel_registerName("_completionDurationForContext:");
-        if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_6, &_orig_6);
-            n++;
-            rawLog("launch-hook: SBAppTransition :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppTransition :: completionDuration");
         }
     }
     {
         Class c = objc_getClass("SBAppToAppWorkspaceTransaction");
         SEL s = sel_registerName("completionDuration");
         if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_7, &_orig_7);
+            MSHookMessageEx(c, s, (IMP)_lhook_6, &_orig_6);
             n++;
-            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: completionDuration");
         }
     }
     {
         Class c = objc_getClass("SBAppToAppWorkspaceTransaction");
-        SEL s = sel_registerName("_completionDurationForContext:");
+        SEL s = sel_registerName("duration");
+        if (c && [c instancesRespondToSelector:s]) {
+            MSHookMessageEx(c, s, (IMP)_lhook_7, &_orig_7);
+            n++;
+            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: duration");
+        }
+    }
+    {
+        Class c = objc_getClass("SBAppToHomeWorkspaceTransaction");
+        SEL s = sel_registerName("completionDuration");
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_8, &_orig_8);
             n++;
-            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: completionDuration");
         }
     }
     {
-        Class c = objc_getClass("SBAppToAppWorkspaceTransaction");
+        Class c = objc_getClass("SBAppToHomeWorkspaceTransaction");
         SEL s = sel_registerName("duration");
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_9, &_orig_9);
             n++;
-            rawLog("launch-hook: SBAppToAppWorkspaceTransaction :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: duration");
         }
     }
     {
-        Class c = objc_getClass("SBAppToHomeWorkspaceTransaction");
+        Class c = objc_getClass("SBAppActivationWorkspaceTransaction");
         SEL s = sel_registerName("completionDuration");
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_10, &_orig_10);
             n++;
-            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppActivationWorkspaceTransaction :: completionDuration");
         }
     }
     {
-        Class c = objc_getClass("SBAppToHomeWorkspaceTransaction");
-        SEL s = sel_registerName("_completionDurationForContext:");
+        Class c = objc_getClass("SBAppDeactivationWorkspaceTransaction");
+        SEL s = sel_registerName("completionDuration");
         if (c && [c instancesRespondToSelector:s]) {
             MSHookMessageEx(c, s, (IMP)_lhook_11, &_orig_11);
             n++;
-            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
-        }
-    }
-    {
-        Class c = objc_getClass("SBAppToHomeWorkspaceTransaction");
-        SEL s = sel_registerName("duration");
-        if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_12, &_orig_12);
-            n++;
-            rawLog("launch-hook: SBAppToHomeWorkspaceTransaction :: duration (divisor=%.1f)", gLaunchDivisor);
-        }
-    }
-    {
-        Class c = objc_getClass("SBAppActivationWorkspaceTransaction");
-        SEL s = sel_registerName("_completionDurationForContext:");
-        if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_13, &_orig_13);
-            n++;
-            rawLog("launch-hook: SBAppActivationWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
-        }
-    }
-    {
-        Class c = objc_getClass("SBAppActivationWorkspaceTransaction");
-        SEL s = sel_registerName("completionDuration");
-        if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_14, &_orig_14);
-            n++;
-            rawLog("launch-hook: SBAppActivationWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
-        }
-    }
-    {
-        Class c = objc_getClass("SBAppDeactivationWorkspaceTransaction");
-        SEL s = sel_registerName("_completionDurationForContext:");
-        if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_15, &_orig_15);
-            n++;
-            rawLog("launch-hook: SBAppDeactivationWorkspaceTransaction :: _completionDurationForContext: (divisor=%.1f)", gLaunchDivisor);
-        }
-    }
-    {
-        Class c = objc_getClass("SBAppDeactivationWorkspaceTransaction");
-        SEL s = sel_registerName("completionDuration");
-        if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_16, &_orig_16);
-            n++;
-            rawLog("launch-hook: SBAppDeactivationWorkspaceTransaction :: completionDuration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppDeactivationWorkspaceTransaction :: completionDuration");
         }
     }
     {
         Class c = objc_getClass("SBApplicationLaunchTransition");
         SEL s = sel_registerName("duration");
         if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_17, &_orig_17);
+            MSHookMessageEx(c, s, (IMP)_lhook_12, &_orig_12);
             n++;
-            rawLog("launch-hook: SBApplicationLaunchTransition :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBApplicationLaunchTransition :: duration");
         }
     }
     {
         Class c = objc_getClass("SBAppLaunchTransition");
         SEL s = sel_registerName("duration");
         if (c && [c instancesRespondToSelector:s]) {
-            MSHookMessageEx(c, s, (IMP)_lhook_18, &_orig_18);
+            MSHookMessageEx(c, s, (IMP)_lhook_13, &_orig_13);
             n++;
-            rawLog("launch-hook: SBAppLaunchTransition :: duration (divisor=%.1f)", gLaunchDivisor);
+            rawLog("launch-hook: SBAppLaunchTransition :: duration");
         }
     }
     return n;
