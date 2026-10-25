@@ -44,7 +44,7 @@
 #import <time.h>
 #import <sys/stat.h>
 
-#define kVersion "1.0.8"
+#define kVersion "1.0.9"
 
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
 static const char *kMarkerPath = "/var/mobile/Library/Preferences/com.minis.force120hz.loaded";
@@ -59,8 +59,8 @@ static const char *kSafePath   = "/var/mobile/Library/Preferences/com.minis.forc
 #define kNfReload    "com.minis.force120hz.reload"
 
 static BOOL   gForce120      = YES;
-static BOOL   gLaunchSpeedup = NO;    // 1.0.4 默认关闭，风险隔离
-static double gLaunchDivisor = 3.0;
+static BOOL   gLaunchSpeedup = YES;   // 默认开启（方案已换成公开 UIView API）
+static double gLaunchDivisor = 5.0;   // 默认 5 倍
 static BOOL   gDebugLog      = YES;
 static BOOL   gSafeMode      = NO;
 static int    gLaunchHooks   = -1;

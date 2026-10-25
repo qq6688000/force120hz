@@ -1,5 +1,5 @@
 #!/bin/sh
-# Force120Hz 1.0.8 postinst
+# Force120Hz 1.0.9 postinst
 #
 # 铁律（来自 QQKeepAlive 2.0.2 的 dpkg 教训）：
 #   deb 里绝不含任何 /var/jb/usr/lib/TweakInject/ 条目 —— 本设备上该目录不可写，
@@ -7,7 +7,7 @@
 #   这里只在运行时探测该目录是否真的可用，可用才 cp -f 一份真实文件。
 #   探测失败不影响安装结果。
 #
-# 1.0.8 改动：每一步都追加记录到 .install.log。
+# 1.0.9 改动：每一步都追加记录到 .install.log。
 #   用户设备上出现过「postinst 跑了、log 文件建了、但 plist 和 marker 都没有」的情况，
 #   当时无法判断 postinst 死在哪一步。现在每一步都有痕迹，可直接定位。
 
@@ -24,7 +24,7 @@ note() {
     echo "  $1"
 }
 
-note "===== postinst 1.0.8 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
+note "===== postinst 1.0.9 begin (uid=$(id -u) euid=$(id -u) user=$(id -un)) ====="
 
 JB=/var/jb
 [ -d "$JB" ] || JB=""
@@ -81,7 +81,7 @@ if [ ! -f "$PREFS" ]; then
 <dict>
 	<key>Force120</key>       <true/>
 	<key>LaunchSpeedup</key>  <true/>
-	<key>LaunchDivisor</key>  <real>3.0</real>
+	<key>LaunchDivisor</key>  <real>5.0</real>
 	<key>DebugLog</key>       <true/>
 </dict>
 </plist>
@@ -94,20 +94,15 @@ PLIST
         note "ERROR 配置写入失败: $PREFS"
     fi
 else
-    note "配置已存在，仅补缺失键: $PREFS"
-    if command -v /usr/bin/plutil >/dev/null 2>&1; then
-        add_key() {
-            /usr/bin/plutil -extract "$1" raw "$PREFS" >/dev/null 2>&1 && return 0
-            /usr/bin/plutil -insert "$1" -"$2" "$3" "$PREFS" 2>/dev/null || return 0
-        }
-        add_key Force120      bool true
-        add_key LaunchSpeedup bool true
-        add_key LaunchDivisor real 3.0
-        add_key DebugLog      bool true
-        chown mobile:mobile "$PREFS" 2>/dev/null || true
-    else
-        note "WARN plutil 不可用，跳过补键"
-    fi
+    note "配置已存在，升级到默认值（120 开 / 加速开 / 5.0x）: $PREFS"
+    # 1.0.9 起默认值：Force120=on, LaunchSpeedup=on, LaunchDivisor=5.0
+    # 用 sed 直接改 XML，避开设备上不可靠的 plutil。
+    sed -e 's|<key>LaunchSpeedup</key>[[:space:]]*<false/>|<key>LaunchSpeedup</key>  <true/>|' \
+        -e 's|<key>LaunchDivisor</key>[[:space:]]*<real>[0-9.]*</real>|<key>LaunchDivisor</key>  <real>5.0</real>|' \
+        "$PREFS" > "$PREFS.new" 2>/dev/null && mv "$PREFS.new" "$PREFS"
+    chown mobile:mobile "$PREFS" 2>/dev/null || true
+    chmod 644 "$PREFS" 2>/dev/null || true
+    note "  LaunchSpeedup/LaunchDivisor 已更新"
 fi
 
 # ---- 日志 / 崩溃 / 状态 / 安装日志：权限给足 ----
@@ -135,7 +130,7 @@ note "重启 SpringBoard..."
 killall -9 SpringBoard 2>/dev/null || note "WARN killall SpringBoard 失败"
 
 echo ""
-echo "Force120Hz 1.0.8 installed (global 120Hz; launch speedup OFF by default)"
+echo "Force120Hz 1.0.9 installed (global 120Hz; launch speedup OFF by default)"
 echo ""
 echo "  dylib: $DL/Force120Hz.dylib"
 if [ -d "$TI" ] && [ -f "$TI/Force120Hz.dylib" ]; then
@@ -156,5 +151,5 @@ echo ""
 echo "* EMERGENCY (black screen loop): f120 panic"
 echo "  safemode only writes marker, installs no hooks."
 echo ""
-note "===== postinst 1.0.8 end ====="
+note "===== postinst 1.0.9 end ====="
 exit 0
