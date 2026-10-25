@@ -1,8 +1,8 @@
 Package: com.minis.force120hz
 Name: Force120Hz + Quick Launch
-Version: 1.2.0
+Version: 1.3.0
 Architecture: iphoneos-arm64
-Description: MINIMAL diagnostic build - single hook: UIScreen.maximumFramesPerSecond returns 120. No other hooks. Used to isolate whether crashes come from this tweak at all.
+Description: Force ProMotion 120Hz in every app (UIScreen + CADisplayLink) plus SpringBoard launch-animation speedup via CAAnimation setDuration. Screen-recording aware.
 Maintainer: minis
 Author: minis
 Section: Tweaks
