@@ -44,7 +44,7 @@
 #import <time.h>
 #import <sys/stat.h>
 
-#define kVersion "1.0.9"
+#define kVersion "1.1.0"
 
 static const char *kPrefPath   = "/var/mobile/Library/Preferences/com.minis.force120hz.plist";
 static const char *kMarkerPath = "/var/mobile/Library/Preferences/com.minis.force120hz.loaded";

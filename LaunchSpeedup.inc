@@ -68,37 +68,42 @@ static int installLaunchSpeedupHooksImpl(void) {
     if (!gLaunchSpeedup || gSafeMode) return 0;
     Class uiv = objc_getClass("UIView");
     if (!uiv) return 0;
+    // ★ 这四个是【类方法】（UIView.h 里全是 + 号），必须 hook 元类。
+    //   1.0.7~1.0.9 传的是 uiv（类对象）→ MSHookMessageEx 当成实例方法处理，
+    //   而 UIView 上没有同名实例方法 → 挂到不存在的位置，SpringBoard 随后崩溃。
+    Class meta = object_getClass((id)uiv);
+    if (!meta) return 0;
     int n = 0;
     {
         SEL s = sel_registerName("animateWithDuration:animations:");
         if ([uiv respondsToSelector:s]) {
-            MSHookMessageEx(uiv, s, (IMP)_lanim_0, &_lanim_orig_0);
-            n++;
-            rawLog("launch-hook: UIView :: animateWithDuration:animations:");
+            MSHookMessageEx(meta, s, (IMP)_lanim_0, &_lanim_orig_0);
+            if (_lanim_orig_0) { n++; }
+            rawLog("launch-hook: UIView(class) :: animateWithDuration:animations: orig=%p", (void *)_lanim_orig_0);
         }
     }
     {
         SEL s = sel_registerName("animateWithDuration:animations:completion:");
         if ([uiv respondsToSelector:s]) {
-            MSHookMessageEx(uiv, s, (IMP)_lanim_1, &_lanim_orig_1);
-            n++;
-            rawLog("launch-hook: UIView :: animateWithDuration:animations:completion:");
+            MSHookMessageEx(meta, s, (IMP)_lanim_1, &_lanim_orig_1);
+            if (_lanim_orig_1) { n++; }
+            rawLog("launch-hook: UIView(class) :: animateWithDuration:animations:completion: orig=%p", (void *)_lanim_orig_1);
         }
     }
     {
         SEL s = sel_registerName("animateWithDuration:delay:options:animations:completion:");
         if ([uiv respondsToSelector:s]) {
-            MSHookMessageEx(uiv, s, (IMP)_lanim_2, &_lanim_orig_2);
-            n++;
-            rawLog("launch-hook: UIView :: animateWithDuration:delay:options:animations:completion:");
+            MSHookMessageEx(meta, s, (IMP)_lanim_2, &_lanim_orig_2);
+            if (_lanim_orig_2) { n++; }
+            rawLog("launch-hook: UIView(class) :: animateWithDuration:delay:options:animations:completion: orig=%p", (void *)_lanim_orig_2);
         }
     }
     {
         SEL s = sel_registerName("animateKeyframesWithDuration:delay:options:animations:completion:");
         if ([uiv respondsToSelector:s]) {
-            MSHookMessageEx(uiv, s, (IMP)_lanim_3, &_lanim_orig_3);
-            n++;
-            rawLog("launch-hook: UIView :: animateKeyframesWithDuration:delay:options:animations:completion:");
+            MSHookMessageEx(meta, s, (IMP)_lanim_3, &_lanim_orig_3);
+            if (_lanim_orig_3) { n++; }
+            rawLog("launch-hook: UIView(class) :: animateKeyframesWithDuration:delay:options:animations:completion: orig=%p", (void *)_lanim_orig_3);
         }
     }
     return n;
