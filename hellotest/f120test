@@ -1,0 +1,58 @@
+#!/bin/sh
+# f120test -- Force120Hz-HelloTest 注入自检
+DD=/var/jb/Library/MobileSubstrate/DynamicLibraries
+DY=$DD/Force120HzTest.dylib
+PL=$DD/Force120HzTest.plist
+PFX=/var/mobile/Library/Preferences/com.minis.force120hz
+
+echo "===== Force120Hz HelloTest 自检 ====="
+echo
+echo "[1] 文件位置 (dylib 与 plist 必须同目录)"
+for f in "$DY" "$PL"; do
+    if [ -f "$f" ]; then
+        echo "    OK   $(basename "$f")  $(wc -c < "$f") 字节"
+    else
+        echo "    缺失 $f"
+    fi
+done
+if [ -f /var/jb/usr/lib/TweakInject/Force120HzTest.dylib ]; then
+    echo "    残留旧位置副本, 建议删除"
+fi
+echo
+echo "[2] 注入目标"
+echo "    计算器 com.apple.calculator -- 只有打开它才会触发"
+echo
+echo "[3] 注入痕迹"
+for e in loaded log status safemode; do
+    f=$PFX.$e
+    if [ -f "$f" ]; then
+        echo "    有   .$e   $(wc -c < "$f") 字节  $(date -r "$f" '+%m-%d %H:%M' 2>/dev/null)"
+    else
+        echo "    无   .$e"
+    fi
+done
+if [ -f "$PFX.loaded" ]; then
+    echo
+    echo "    最新标记:"
+    tail -3 "$PFX.loaded" | sed 's/^/      /'
+fi
+echo
+echo "[4] 判定"
+if [ -f "$PFX.loaded" ]; then
+    echo "    [成功] 注入成功 -- 标记文件已生成, 插件确实运行了"
+    echo "           本包只在计算器里生效, 只改刷新率与启动动画速度,"
+    echo "           在计算器里几乎看不出来, 所以肉眼没效果是正常的。"
+else
+    echo "    [未注入] 还没有任何标记文件"
+    echo "           如果你还没打开过计算器, 这就是正常状态"
+    echo "           如果已经打开过, 依次检查:"
+    echo "             1) 是否真的打开过计算器"
+    echo "             2) dylib 是否有签名 (重装本包会自动签)"
+    echo "             3) ellekit 是否正常"
+fi
+if [ -f "$PFX.safemode" ]; then
+    echo
+    echo "    [注意] 存在 safemode 标记 -> 插件只写标记不装 hook"
+    echo "           清除: rm -f $PFX.safemode"
+fi
+exit 0

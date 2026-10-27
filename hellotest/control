@@ -1,0 +1,13 @@
+Package: force120hz-h120test
+Name: Force120Hz (Hello 120Hz canary)
+Version: 1.0-2
+Architecture: iphoneos-arm64
+Section: Tweaks
+Depends: firmware (>= 16.0), ellekit | mobilesubstrate
+Maintainer: local <local@local>
+Description: SAFE test build of the merged Force120Hz. Injects into
+ com.apple.calculator only, so a broken merge can only break
+ Calculator; the rest of the phone keeps working.
+ 1.0-2: dylib moved next to its plist (ellekit pairs them per
+ directory); Depends now pulls ellekit; postinst no longer deletes
+ the payload on failure and signs both fat slices; adds f120test.

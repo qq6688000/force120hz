@@ -1,0 +1,72 @@
+#!/bin/sh
+# Force120Hz-HelloTest 安装后置脚本 (1.0-2)
+# 原则: 不静默失败、不删 payload、让用户能自证是否生效
+JB=/var/jb
+DD=$JB/Library/MobileSubstrate/DynamicLibraries
+DY=$DD/Force120HzTest.dylib
+PL=$DD/Force120HzTest.plist
+OLDDY=$JB/usr/lib/TweakInject/Force120HzTest.dylib
+PFX=/var/mobile/Library/Preferences/com.minis.force120hz
+
+echo "Force120Hz-HelloTest: 开始配置"
+
+# 1) 清掉旧版放错目录的那份（旧位置 ellekit 不认）
+if [ -f "$OLDDY" ]; then
+    rm -f "$OLDDY"
+    echo "  已清理旧位置 $OLDDY"
+fi
+if [ -d "$JB/usr/lib/TweakInject" ]; then
+    rmdir "$JB/usr/lib/TweakInject" 2>/dev/null
+fi
+
+# 2) 确认 payload 就位（dylib 与 plist 必须同目录，ellekit 按同名配对）
+MISS=0
+for f in "$DY" "$PL"; do
+    if [ -f "$f" ]; then
+        echo "  OK  $(basename "$f")  $(wc -c < "$f") 字节"
+    else
+        echo "  [错误] 缺少 $f"
+        MISS=1
+    fi
+done
+if [ "$MISS" = 1 ]; then
+    echo "  解包不完整，请重新安装本包"
+    exit 0
+fi
+
+# 3) 签名: fat 包的两个切片都要签，ldid -S 会自动逐个处理
+if command -v ldid >/dev/null 2>&1; then
+    if ldid -S "$DY"; then
+        echo "  已签名 (ldid)"
+    else
+        echo "  [警告] ldid 签名失败，dylib 可能不被加载"
+    fi
+else
+    echo "  [警告] 找不到 ldid，dylib 未签名，很可能不会被加载"
+    echo "         修复: apt-get install -y ldid  然后重装本包"
+fi
+
+# 4) 检查注入框架（插件链接的就是下面这个确切路径，缺了必然不加载）
+SUB="$JB/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate"
+if [ -f "$SUB" ]; then
+    echo "  substrate: 已就绪"
+    echo "              $SUB"
+else
+    echo "  [警告] 找不到 $SUB"
+    echo "         插件链接的就是这个路径，缺了它一定不会被注入"
+    echo "         修复: apt-get install --reinstall ellekit"
+fi
+# 5) 检查 safemode 残留
+#    有它时插件只写标记、不装 hook，看着就像"没效果"
+if [ -f "$PFX.safemode" ]; then
+    echo "  [注意] 存在 safemode 标记: $PFX.safemode"
+    echo "         该标记会让插件跳过全部 hook"
+    echo "         清除: rm -f $PFX.safemode"
+fi
+
+# 6) 自证方法
+echo "  完成。验证步骤:"
+echo "    1) 打开一次 计算器 App"
+echo "    2) 运行 f120test 看判定结果"
+echo "  说明: 本包是安全测试版，只注入计算器，不碰 SpringBoard。"
+exit 0
